@@ -119,8 +119,8 @@
           );
         })
         .join("");
-    tableFooter.textContent =
-      "Всего записей: " + rows.length + (filter ? " (показано по фильтру: " + visible.length + ")") : "";
+    var suffix = filter ? " (показано по фильтру: " + visible.length + ")" : "";
+    tableFooter.textContent = "Всего записей: " + rows.length + suffix;
   }
 
   async function loadTable() {
