@@ -146,11 +146,19 @@
         var v = cachedRows[j][key];
         if (v != null && v !== "") vals[String(v)] = true;
       }
+      var isDate = !!DATE_KEYS[key];
       var sorted = Object.keys(vals).sort(function (a, b) {
         // Заглушки «НЕТ …» всегда первыми
         var aStub = a.indexOf("НЕТ") === 0 ? 0 : 1;
         var bStub = b.indexOf("НЕТ") === 0 ? 0 : 1;
         if (aStub !== bStub) return aStub - bStub;
+        if (isDate) {
+          var da = dateSortKey(a);
+          var db = dateSortKey(b);
+          if (da < db) return -1;
+          if (da > db) return 1;
+          return 0;
+        }
         return a.localeCompare(b, "ru");
       });
 
