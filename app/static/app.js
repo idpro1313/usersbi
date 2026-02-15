@@ -330,7 +330,9 @@
         setStatus(statusEl, false, data.detail || "Ошибка загрузки");
         return;
       }
-      setStatus(statusEl, true, "Загружено: " + data.rows + " записей (" + data.filename + ")");
+      var msg = "Загружено: " + data.rows + " записей (" + data.filename + ")";
+      if (data.skipped) msg += " | пропущено " + data.skipped + " чужих";
+      setStatus(statusEl, true, msg);
       loadStats();
       loadTable();
     } catch (e) {

@@ -104,8 +104,14 @@ def get_last_parse_info() -> dict:
     return dict(_last_parse_info)
 
 
-def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[list[dict], str | None]:
-    """Парсит CSV или Excel выгрузку AD. override_domain — если задан, подставляется в поле domain."""
+def parse_ad(content: bytes, filename: str, override_domain: str = "",
+             expected_dn_suffix: str = "") -> tuple[list[dict], str | None, int]:
+    """
+    Парсит CSV или Excel выгрузку AD.
+    override_domain — если задан, подставляется в поле domain.
+    expected_dn_suffix — если задан, оставляет только записи с этим суффиксом в distinguishedName.
+    Возвращает (rows, error, skipped_count).
+    """
     try:
         ext = (filename or "").lower().split(".")[-1]
         if ext in ("xlsx", "xls"):
@@ -119,19 +125,30 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[
         df = _map_columns(df, AD_COLUMNS)
         mapped_cols = list(df.columns)
 
+        # Найти колонку distinguishedName (может быть уже переименована)
+        dn_col = None
+        for c in df.columns:
+            if str(c).strip().lower() in ("distinguishedname", "distinguished_name"):
+                dn_col = c
+                break
+
         # Домен: извлечь из distinguishedName, если колонки domain нет
         if "domain" not in df.columns:
-            dn_col = None
-            for c in df.columns:
-                if str(c).strip().lower() == "distinguishedname":
-                    dn_col = c
-                    break
             if dn_col:
                 df["domain"] = df[dn_col].apply(
                     lambda x: _extract_domain_from_dn(str(x) if pd.notna(x) else "")
                 )
             else:
                 df["domain"] = ""
+
+        # Фильтрация по DN-суффиксу: оставить только записи нужного домена
+        total_before = len(df)
+        dn_suffix_lower = expected_dn_suffix.lower().replace(" ", "") if expected_dn_suffix else ""
+        if dn_suffix_lower and dn_col:
+            df = df[df[dn_col].apply(
+                lambda x: dn_suffix_lower in str(x).lower().replace(" ", "") if pd.notna(x) else False
+            )]
+        skipped = total_before - len(df)
 
         # Диагностика
         _last_parse_info["ad"] = {
@@ -141,9 +158,11 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[
             "sample_login": _norm(df["login"].iloc[0]) if "login" in df.columns and len(df) > 0 else "NOT FOUND",
             "sample_domain": _norm(df["domain"].iloc[0]) if "domain" in df.columns and len(df) > 0 else "NOT FOUND",
             "rows": len(df),
+            "skipped_wrong_domain": skipped,
         }
         print(f"[AD] Original columns: {original_cols}")
         print(f"[AD] Mapped columns:   {mapped_cols}")
+        print(f"[AD] Total in file: {total_before}, accepted: {len(df)}, skipped: {skipped}")
         print(f"[AD] Sample login: {_last_parse_info['ad']['sample_login']}")
         print(f"[AD] Sample domain: {_last_parse_info['ad']['sample_domain']}")
 
@@ -172,9 +191,9 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[
                 "info": _norm(r.get("info", "")),
                 "groups": _norm(r.get("groups", "")),
             })
-        return rows, None
+        return rows, None, skipped
     except Exception as e:
-        return [], str(e)
+        return [], str(e), 0
 
 
 def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:

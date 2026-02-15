@@ -11,9 +11,16 @@ DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'app.db'}")
 # Домены AD (ключ → город, DN-суффикс для справки)
 # ======================================================================
 AD_DOMAINS = {
-    "izhevsk":  "Ижевск",     # DC=local,DC=htc-cs,DC=com
-    "kostroma": "Кострома",    # DC=ad,DC=local
-    "moscow":   "Москва",      # DC=aplana,DC=com
+    "izhevsk":  "Ижевск",
+    "kostroma": "Кострома",
+    "moscow":   "Москва",
+}
+
+# DN-суффиксы для валидации принадлежности УЗ к домену
+AD_DOMAIN_DN = {
+    "izhevsk":  "DC=local,DC=htc-cs,DC=com",
+    "kostroma": "DC=ad,DC=local",
+    "moscow":   "DC=aplana,DC=com",
 }
 
 # ======================================================================

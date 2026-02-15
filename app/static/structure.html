@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Группы AD</title>
+  <title>Структура OU — AD</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📊</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
 </head>
@@ -14,12 +14,12 @@
     <div class="top-bar">
       <div class="top-bar-row">
         <div>
-          <h1>Анализ групп AD</h1>
-          <p class="subtitle">Состав групп Active Directory по доменам</p>
+          <h1>Структура OU Active Directory</h1>
+          <p class="subtitle">Организационные подразделения по доменам</p>
         </div>
         <div class="nav-links">
           <a href="/" class="nav-link">← Сводная</a>
-          <a href="/structure" class="nav-link">Структура OU</a>
+          <a href="/groups" class="nav-link">Группы AD</a>
         </div>
       </div>
     </div>
@@ -27,27 +27,28 @@
     <!-- Split-layout: дерево + таблица -->
     <div class="groups-layout">
 
-      <!-- Левая панель: дерево -->
+      <!-- Левая панель: дерево OU -->
       <aside class="groups-sidebar">
         <div class="sidebar-search">
-          <input type="text" id="group-search" placeholder="Поиск группы…">
+          <input type="text" id="ou-search" placeholder="Поиск OU…">
         </div>
         <div class="sidebar-tree" id="sidebar-tree">
           <p class="muted-text">Загрузка…</p>
         </div>
       </aside>
 
-      <!-- Правая панель: участники -->
+      <!-- Правая панель: участники OU -->
       <main class="groups-main">
-        <div class="groups-header" id="groups-header">
-          <h2 class="groups-title" id="groups-title">Выберите группу</h2>
-          <span class="groups-count" id="groups-count"></span>
+        <div class="groups-header" id="ou-header">
+          <h2 class="groups-title" id="ou-title">Выберите OU</h2>
+          <div id="ou-breadcrumb" class="ou-breadcrumb"></div>
+          <span class="groups-count" id="ou-count"></span>
         </div>
         <div class="groups-table-wrap">
           <table class="data-table" id="members-table">
             <thead id="members-thead"></thead>
             <tbody id="members-tbody">
-              <tr><td colspan="8" class="muted-text">Выберите группу из дерева слева</td></tr>
+              <tr><td colspan="9" class="muted-text">Выберите OU из дерева слева</td></tr>
             </tbody>
           </table>
         </div>
@@ -56,6 +57,6 @@
     </div>
 
   </div>
-  <script src="/static/groups.js"></script>
+  <script src="/static/structure.js"></script>
 </body>
 </html>

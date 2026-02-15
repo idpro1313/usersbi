@@ -603,3 +603,77 @@ html, body {
   font-size: 0.65rem;
   color: var(--accent);
 }
+
+/* ═══════════════════════════════════════════════════════
+   Страница структуры OU: дерево + хлебные крошки
+   ═══════════════════════════════════════════════════════ */
+
+/* ─── Хлебные крошки ─── */
+.ou-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+}
+
+.ou-crumb {
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+
+.ou-crumb:hover {
+  background: var(--hover-bg);
+  text-decoration: underline;
+}
+
+.ou-crumb-sep {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+/* ─── Дерево OU: узлы ─── */
+.tree-ou-children {
+  padding-left: 0.9rem;
+}
+
+.tree-ou-node {
+  margin-bottom: 0.05rem;
+}
+
+.tree-ou-row {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.25rem;
+}
+
+.tree-arrow-spacer {
+  width: 12px;
+  display: inline-block;
+}
+
+.tree-ou-item {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.1s;
+}
+
+.tree-ou-item:hover {
+  background: var(--hover-bg);
+}
+
+.tree-ou-item.active {
+  background: var(--hover-bg);
+  color: var(--accent);
+  font-weight: 500;
+}

@@ -11,8 +11,9 @@ from pathlib import Path
 from app.database import init_db, get_db, Upload, ADRecord, MFARecord, PeopleRecord
 from app.parsers import parse_ad, parse_mfa, parse_people, get_last_parse_info
 from app.consolidation import build_consolidated
-from app.config import AD_DOMAINS
+from app.config import AD_DOMAINS, AD_DOMAIN_DN
 from app.groups import router as groups_router
+from app.structure import router as structure_router
 
 
 @asynccontextmanager
@@ -23,6 +24,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Сводная AD / MFA / Кадры", lifespan=lifespan)
 app.include_router(groups_router)
+app.include_router(structure_router)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 if STATIC_DIR.exists():
@@ -41,6 +43,12 @@ async def groups_page():
     return html
 
 
+@app.get("/structure", response_class=HTMLResponse)
+async def structure_page():
+    html = (STATIC_DIR / "structure.html").read_text(encoding="utf-8")
+    return html
+
+
 @app.post("/api/upload/ad/{domain_key}")
 async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
     if domain_key not in AD_DOMAINS:
@@ -49,9 +57,12 @@ async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session =
     if not file.filename:
         raise HTTPException(400, "Нет имени файла")
     content = await file.read()
-    rows, err = parse_ad(content, file.filename, override_domain=city_name)
+    dn_suffix = AD_DOMAIN_DN.get(domain_key, "")
+    rows, err, skipped = parse_ad(content, file.filename, override_domain=city_name, expected_dn_suffix=dn_suffix)
     if err:
         raise HTTPException(400, f"Ошибка разбора файла: {err}")
+    if not rows and skipped > 0:
+        raise HTTPException(400, f"В файле нет записей для домена {city_name} (отфильтровано {skipped} записей других доменов)")
     # Удаляем только записи этого домена
     db.query(ADRecord).filter(ADRecord.ad_source == domain_key).delete()
     db.query(Upload).filter(Upload.source == f"ad_{domain_key}").delete()
@@ -62,7 +73,11 @@ async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session =
         rec = ADRecord(upload_id=upload.id, ad_source=domain_key, **r)
         db.add(rec)
     db.commit()
-    return {"ok": True, "rows": len(rows), "filename": file.filename, "domain": city_name}
+    result = {"ok": True, "rows": len(rows), "filename": file.filename, "domain": city_name}
+    if skipped > 0:
+        result["skipped"] = skipped
+        result["message"] = f"Загружено {len(rows)} записей {city_name}, пропущено {skipped} записей других доменов"
+    return result
 
 
 @app.post("/api/upload/mfa")
