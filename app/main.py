@@ -132,6 +132,19 @@ async def get_stats(db: Session = Depends(get_db)):
     }
 
 
+@app.delete("/api/clear/all")
+async def clear_all(db: Session = Depends(get_db)):
+    ad = db.query(ADRecord).count()
+    mfa = db.query(MFARecord).count()
+    people = db.query(PeopleRecord).count()
+    db.query(ADRecord).delete()
+    db.query(MFARecord).delete()
+    db.query(PeopleRecord).delete()
+    db.query(Upload).delete()
+    db.commit()
+    return {"ok": True, "deleted": {"ad": ad, "mfa": mfa, "people": people}}
+
+
 @app.delete("/api/clear/ad/{domain_key}")
 async def clear_ad(domain_key: str, db: Session = Depends(get_db)):
     if domain_key not in AD_DOMAINS:

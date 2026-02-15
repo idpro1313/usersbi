@@ -196,6 +196,26 @@
   if (btnClearMfa) btnClearMfa.onclick = function () { clearData("/api/clear/mfa", "MFA", statusMfa); };
   if (btnClearPeople) btnClearPeople.onclick = function () { clearData("/api/clear/people", "Кадры", statusPeople); };
 
+  // Очистить всю БД
+  var btnClearAll = document.getElementById("btn-clear-all");
+  if (btnClearAll) {
+    btnClearAll.onclick = async function () {
+      if (!confirm("Очистить ВСЮ базу данных (AD + MFA + Кадры)?")) return;
+      try {
+        var r = await fetch(API + "/api/clear/all", { method: "DELETE" });
+        var data = await r.json();
+        if (r.ok) {
+          var d = data.deleted;
+          alert("Удалено: AD " + d.ad + ", MFA " + d.mfa + ", Кадры " + d.people);
+          loadStats();
+          loadTable();
+        }
+      } catch (e) {
+        alert("Ошибка: " + e.message);
+      }
+    };
+  }
+
   // Выгрузка сводной в XLSX
   var btnExport = document.getElementById("btn-export");
   if (btnExport) {
