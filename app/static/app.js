@@ -142,6 +142,18 @@
     });
   }
 
+  // Сворачивание/разворачивание панели загрузки
+  var toggleBtn = document.getElementById("toggle-uploads");
+  var uploadsPanel = document.getElementById("uploads-panel");
+  if (toggleBtn && uploadsPanel) {
+    toggleBtn.onclick = function () {
+      uploadsPanel.classList.toggle("collapsed");
+      toggleBtn.textContent = uploadsPanel.classList.contains("collapsed")
+        ? "Загрузка файлов \u25B6"
+        : "Загрузка файлов \u25BC";
+    };
+  }
+
   loadStats();
   loadTable();
 })();

@@ -7,82 +7,91 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <h1>Сводная по сотрудникам</h1>
-      <p class="subtitle">Загрузка выгрузок AD, MFA и кадров — аналитическая таблица с сверкой данных</p>
-    </header>
+  <div class="layout">
 
-    <section class="uploads">
-      <h2>Загрузка файлов</h2>
+    <!-- Шапка -->
+    <div class="top-bar">
+      <div class="top-bar-row">
+        <div>
+          <h1>Сводная по сотрудникам</h1>
+          <p class="subtitle">AD + MFA + Кадры — аналитика и сверка данных</p>
+        </div>
+        <button type="button" class="toggle-btn" id="toggle-uploads">Загрузка файлов ▼</button>
+      </div>
+    </div>
+
+    <!-- Панель загрузки (сворачиваемая) -->
+    <div class="uploads-panel" id="uploads-panel">
       <div class="upload-cards">
-        <div class="card" data-source="ad">
+        <div class="card">
           <h3>AD</h3>
-          <p>CSV или Excel (логины, домен, УЗ, пароль, StaffUUID)</p>
+          <p>CSV или Excel</p>
           <input type="file" id="file-ad" accept=".csv,.xlsx,.xls" hidden>
-          <button type="button" class="btn" id="btn-ad">Выбрать и загрузить</button>
+          <button type="button" class="btn" id="btn-ad">Загрузить</button>
           <div class="upload-status" id="status-ad"></div>
         </div>
-        <div class="card" data-source="mfa">
+        <div class="card">
           <h3>MFA</h3>
-          <p>CSV с разделителем «;» (Identity, Email, Name, Phones, LastLoginDate, CreatedAt…)</p>
+          <p>CSV (разделитель «;»)</p>
           <input type="file" id="file-mfa" accept=".csv" hidden>
-          <button type="button" class="btn" id="btn-mfa">Выбрать и загрузить</button>
+          <button type="button" class="btn" id="btn-mfa">Загрузить</button>
           <div class="upload-status" id="status-mfa"></div>
         </div>
-        <div class="card" data-source="people">
+        <div class="card">
           <h3>Кадры</h3>
-          <p>Excel, первый лист (StaffUUID, ФИО, Email, Телефон)</p>
+          <p>Excel, первый лист</p>
           <input type="file" id="file-people" accept=".xlsx,.xls" hidden>
-          <button type="button" class="btn" id="btn-people">Выбрать и загрузить</button>
+          <button type="button" class="btn" id="btn-people">Загрузить</button>
           <div class="upload-status" id="status-people"></div>
         </div>
       </div>
       <div class="stats" id="stats"></div>
-    </section>
+    </div>
 
-    <section class="table-section">
-      <div class="table-header">
-        <h2>Сводная таблица</h2>
-        <div class="toolbar">
-          <button type="button" class="btn btn-secondary" id="btn-refresh">Обновить</button>
-          <label class="filter-wrap">
-            <input type="text" id="filter" placeholder="Поиск по таблице…">
-          </label>
-        </div>
+    <!-- Тулбар таблицы -->
+    <div class="table-toolbar">
+      <h2>Сводная таблица</h2>
+      <div class="toolbar-right">
+        <span class="table-info" id="table-footer"></span>
+        <label class="filter-wrap">
+          <input type="text" id="filter" placeholder="Поиск…">
+        </label>
+        <button type="button" class="btn btn-secondary" id="btn-refresh">Обновить</button>
       </div>
-      <div class="table-scroll">
-        <table class="data-table" id="data-table">
-          <thead>
-            <tr>
-              <th>Источник</th>
-              <th>Домен AD</th>
-              <th>Логин AD</th>
-              <th>УЗ активна</th>
-              <th>Смена пароля</th>
-              <th>Срок УЗ</th>
-              <th>StaffUUID</th>
-              <th>Есть MFA</th>
-              <th>MFA подключен</th>
-              <th>Последний вход MFA</th>
-              <th>Способ MFA</th>
-              <th>ФИО (AD)</th>
-              <th>ФИО (MFA)</th>
-              <th>ФИО (Кадры)</th>
-              <th>Email (AD)</th>
-              <th>Email (MFA)</th>
-              <th>Email (Кадры)</th>
-              <th>Телефон (AD)</th>
-              <th>Телефон (MFA)</th>
-              <th>Телефон (Кадры)</th>
-              <th>Расхождения</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-      </div>
-      <div class="table-footer" id="table-footer"></div>
-    </section>
+    </div>
+
+    <!-- Таблица — на всё оставшееся пространство -->
+    <div class="table-container">
+      <table class="data-table" id="data-table">
+        <thead>
+          <tr>
+            <th>Источник</th>
+            <th>Домен</th>
+            <th>Логин</th>
+            <th>УЗ</th>
+            <th>Пароль</th>
+            <th>Срок УЗ</th>
+            <th>UUID</th>
+            <th>MFA</th>
+            <th>MFA с</th>
+            <th>Вход MFA</th>
+            <th>Способ</th>
+            <th>ФИО (AD)</th>
+            <th>ФИО (MFA)</th>
+            <th>ФИО (Кадры)</th>
+            <th>Email (AD)</th>
+            <th>Email (MFA)</th>
+            <th>Email (Кадры)</th>
+            <th>Тел. (AD)</th>
+            <th>Тел. (MFA)</th>
+            <th>Тел. (Кадры)</th>
+            <th>Расхождения</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
   </div>
   <script src="/static/app.js"></script>
 </body>
