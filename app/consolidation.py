@@ -129,7 +129,13 @@ def build_consolidated(db: Session) -> list[dict]:
         if isinstance(en, bool):
             en_str = "Да" if en else "Нет"
         else:
-            en_str = "Да" if str(en).strip().lower() in ("true", "1", "да", "yes") else (str(en) if str(en).strip() else "")
+            en_low = str(en).strip().lower()
+            if en_low in ("true", "1", "да", "yes"):
+                en_str = "Да"
+            elif en_low in ("false", "0", "нет", "no"):
+                en_str = "Нет"
+            else:
+                en_str = str(en).strip() if str(en).strip() else ""
 
         result.append({
             "source": "AD",

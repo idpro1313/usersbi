@@ -25,9 +25,10 @@ def _safe_date(x):
     if hasattr(x, "strftime"):
         return x.strftime("%d.%m.%Y")
     s = str(x).strip()
-    # Убираем время, если формат "дд.мм.гггг чч:мм:сс"
-    if re.match(r"\d{2}\.\d{2}\.\d{4}\s", s):
-        s = s.split()[0]
+    if not s or s.lower() in ("nat", "nan", "none", "never"):
+        return s if s.lower() == "never" else ""
+    # Убираем время из любого формата "дата пробел время"
+    s = re.split(r"\s+", s)[0]
     return s
 
 

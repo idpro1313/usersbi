@@ -95,8 +95,8 @@
             rowClass(row.source) +
             "\">" +
             "<td>" + escapeHtml(row.source) + "</td>" +
-            "<td>" + escapeHtml(row.domain) + "</td>" +
             "<td>" + escapeHtml(row.login) + "</td>" +
+            "<td>" + escapeHtml(row.domain) + "</td>" +
             "<td>" + escapeHtml(row.uz_active) + "</td>" +
             "<td>" + escapeHtml(row.password_last_set) + "</td>" +
             "<td>" + escapeHtml(row.account_expires) + "</td>" +

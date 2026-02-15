@@ -239,52 +239,25 @@ html, body {
   position: sticky;
   left: 0;
   z-index: 3;
-  background: var(--surface);
+  min-width: 72px;
+  max-width: 72px;
 }
 
-.data-table th:first-child {
-  z-index: 4;
-}
+.data-table th:first-child { z-index: 4; background: var(--surface); }
+.data-table td:first-child { background: var(--bg); font-weight: 500; }
 
-.data-table td:first-child {
-  background: var(--bg);
-  font-weight: 500;
-}
-
-/* Вторая колонка (Домен) тоже прилипает */
+/* Вторая колонка (Логин) — прилипает слева после Источника */
 .data-table th:nth-child(2),
 .data-table td:nth-child(2) {
   position: sticky;
-  left: 70px;  /* ≈ ширина первой колонки */
+  left: 72px;
   z-index: 3;
-  background: var(--surface);
-}
-
-.data-table th:nth-child(2) {
-  z-index: 4;
-}
-
-.data-table td:nth-child(2) {
-  background: var(--bg);
-}
-
-/* Третья колонка (Логин) тоже прилипает */
-.data-table th:nth-child(3),
-.data-table td:nth-child(3) {
-  position: sticky;
-  left: 155px;  /* ≈ ширина первой + второй колонок */
-  z-index: 3;
-  background: var(--surface);
+  min-width: 130px;
   border-right: 2px solid var(--accent);
 }
 
-.data-table th:nth-child(3) {
-  z-index: 4;
-}
-
-.data-table td:nth-child(3) {
-  background: var(--bg);
-}
+.data-table th:nth-child(2) { z-index: 4; background: var(--surface); }
+.data-table td:nth-child(2) { background: var(--bg); }
 
 .data-table tbody tr:hover td {
   background: rgba(88, 166, 255, 0.08);
