@@ -332,13 +332,13 @@ html, body {
   color: var(--text);
 }
 
-/* Колонка "#" — прилипает слева (40px) */
+/* Колонка "#" — прилипает слева (50px) */
 .data-table .col-num {
   position: sticky;
   left: 0;
   z-index: 3;
-  min-width: 40px;
-  max-width: 40px;
+  min-width: 50px;
+  max-width: 50px;
   text-align: center;
   font-size: 0.7rem;
   color: var(--muted);
@@ -350,7 +350,7 @@ html, body {
 .data-table th:nth-child(2),
 .data-table td:nth-child(2) {
   position: sticky;
-  left: 40px;
+  left: 50px;
   z-index: 3;
   min-width: 72px;
   max-width: 72px;
@@ -363,7 +363,7 @@ html, body {
 .data-table th:nth-child(3),
 .data-table td:nth-child(3) {
   position: sticky;
-  left: 112px;
+  left: 122px;
   z-index: 3;
   min-width: 130px;
   border-right: 2px solid var(--accent);
