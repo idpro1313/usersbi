@@ -256,15 +256,56 @@ html, body {
   text-overflow: ellipsis;
 }
 
-/* Закреплённые заголовки — прилипают сверху */
+/* Закреплённые заголовки — два ряда: метки и фильтры */
 .data-table th {
   position: sticky;
-  top: 0;
   background: var(--surface);
   color: var(--muted);
   font-weight: 500;
   z-index: 2;
   border-top: none;
+}
+
+.thead-labels th {
+  top: 0;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.thead-labels th:hover {
+  color: var(--accent);
+}
+
+.thead-labels th .sort-icon {
+  font-size: 0.65rem;
+  color: var(--accent);
+}
+
+.thead-filters th {
+  top: 28px;   /* высота ряда меток */
+  padding: 0.2rem 0.25rem;
+}
+
+.col-filter {
+  width: 100%;
+  padding: 0.15rem 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.7rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.col-filter::placeholder {
+  color: var(--border);
+}
+
+.col-filter:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 /* Первая колонка (Источник) — прилипает слева */
@@ -277,7 +318,7 @@ html, body {
   max-width: 72px;
 }
 
-.data-table th:first-child { z-index: 4; background: var(--surface); }
+.data-table th:first-child { z-index: 5; background: var(--surface); }
 .data-table td:first-child { background: var(--bg); font-weight: 500; }
 
 /* Вторая колонка (Логин) — прилипает слева после Источника */
@@ -290,7 +331,7 @@ html, body {
   border-right: 2px solid var(--accent);
 }
 
-.data-table th:nth-child(2) { z-index: 4; background: var(--surface); }
+.data-table th:nth-child(2) { z-index: 5; background: var(--surface); }
 .data-table td:nth-child(2) { background: var(--bg); }
 
 .data-table tbody tr:hover td {
