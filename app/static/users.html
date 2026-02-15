@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Пользователи</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📊</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="layout">
+
+    <!-- Шапка -->
+    <div class="top-bar">
+      <div class="top-bar-row">
+        <div>
+          <h1>Пользователи</h1>
+          <p class="subtitle">Карточки сотрудников — сводная информация из всех систем</p>
+        </div>
+        <div class="nav-links">
+          <a href="/" class="nav-link">← Сводная</a>
+          <a href="/groups" class="nav-link">Группы AD</a>
+          <a href="/structure" class="nav-link">Структура OU</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Split-layout -->
+    <div class="groups-layout">
+
+      <!-- Левая панель: список пользователей -->
+      <aside class="groups-sidebar">
+        <div class="sidebar-search">
+          <input type="text" id="user-search" placeholder="Поиск по ФИО, логину, UUID…">
+        </div>
+        <div class="sidebar-info" id="sidebar-info"></div>
+        <div class="sidebar-tree" id="sidebar-list">
+          <p class="muted-text">Загрузка…</p>
+        </div>
+      </aside>
+
+      <!-- Правая панель: карточка -->
+      <main class="groups-main">
+        <div class="user-card-wrap" id="user-card">
+          <p class="muted-text">Выберите пользователя из списка слева</p>
+        </div>
+      </main>
+
+    </div>
+
+  </div>
+  <script src="/static/users.js"></script>
+</body>
+</html>

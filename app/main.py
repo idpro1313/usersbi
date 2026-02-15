@@ -14,6 +14,7 @@ from app.consolidation import build_consolidated
 from app.config import AD_DOMAINS, AD_DOMAIN_DN
 from app.groups import router as groups_router
 from app.structure import router as structure_router
+from app.users import router as users_router
 
 
 @asynccontextmanager
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Сводная AD / MFA / Кадры", lifespan=lifespan)
 app.include_router(groups_router)
 app.include_router(structure_router)
+app.include_router(users_router)
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 if STATIC_DIR.exists():
@@ -46,6 +48,12 @@ async def groups_page():
 @app.get("/structure", response_class=HTMLResponse)
 async def structure_page():
     html = (STATIC_DIR / "structure.html").read_text(encoding="utf-8")
+    return html
+
+
+@app.get("/users", response_class=HTMLResponse)
+async def users_page():
+    html = (STATIC_DIR / "users.html").read_text(encoding="utf-8")
     return html
 
 
