@@ -168,44 +168,59 @@ def build_consolidated(db: Session) -> list[dict]:
             "mfa_last_login": mfa.get("last_login_mfa", "") if has_mfa else "НЕТ MFA",
             "mfa_authenticators": mfa.get("authenticators", "") if has_mfa else "НЕТ MFA",
             "fio_ad": fio_ad,
-            "fio_mfa": fio_mfa if has_mfa else "НЕТ MFA",
+            "fio_mfa": "НЕТ MFA" if not has_mfa else (fio_mfa if fio_mfa else "НЕТ ФИО"),
             "fio_people": fio_people if has_people else "НЕТ в DP",
             "email_ad": email_ad,
-            "email_mfa": email_mfa if has_mfa else "НЕТ MFA",
-            "email_people": email_people if has_people else "НЕТ в DP",
+            "email_mfa": "НЕТ MFA" if not has_mfa else (email_mfa if email_mfa else "НЕТ EMAIL"),
+            "email_people": "НЕТ в DP" if not has_people else (email_people if email_people else "НЕТ EMAIL"),
             "phone_ad": phone_ad,
             "mobile_ad": mobile_ad,
-            "phone_mfa": phone_mfa if has_mfa else "НЕТ MFA",
-            "phone_people": phone_people if has_people else "НЕТ в DP",
+            "phone_mfa": "НЕТ MFA" if not has_mfa else (phone_mfa if phone_mfa else "НЕТ ТЕЛ"),
+            "phone_people": "НЕТ в DP" if not has_people else (phone_people if phone_people else "НЕТ ТЕЛ"),
             "discrepancies": "; ".join(remarks) if remarks else "",
         })
 
     for r in rows_mfa:
         if _norm_key_login(r["identity"]) in ad_logins:
             continue
+        mfa_remarks = ["Нет УЗ в AD"]
+        # Попробуем найти в кадрах по email
+        has_people = False
+        fio_people = ""
+        email_people = ""
+        phone_people = ""
+        for p in rows_people:
+            if p.get("email_people") and r.get("email_mfa") and p["email_people"] == r["email_mfa"]:
+                has_people = True
+                fio_people = p.get("fio_people", "")
+                email_people = p.get("email_people", "")
+                phone_people = p.get("phone_people", "")
+                break
+        if not has_people:
+            mfa_remarks.append("Нет в кадрах")
         result.append({
             "source": "MFA",
-            "domain": "",
+            "domain": "НЕТ УЗ",
             "login": r["identity"],
-            "uz_active": "",
-            "password_last_set": "",
-            "account_expires": "",
+            "uz_active": "НЕТ УЗ",
+            "password_last_set": "НЕТ УЗ",
+            "account_expires": "НЕТ УЗ",
             "staff_uuid": "",
             "mfa_enabled": "Да",
             "mfa_created_at": r.get("created_at_mfa", ""),
             "mfa_last_login": r.get("last_login_mfa", ""),
             "mfa_authenticators": r.get("authenticators", ""),
-            "fio_ad": "",
+            "fio_ad": "НЕТ УЗ",
             "fio_mfa": r.get("fio_mfa", ""),
-            "fio_people": "",
-            "email_ad": "",
+            "fio_people": fio_people if has_people else "НЕТ в DP",
+            "email_ad": "НЕТ УЗ",
             "email_mfa": r.get("email_mfa", ""),
-            "email_people": "",
-            "phone_ad": "",
-            "mobile_ad": "",
+            "email_people": email_people if has_people else "НЕТ в DP",
+            "phone_ad": "НЕТ УЗ",
+            "mobile_ad": "НЕТ УЗ",
             "phone_mfa": r.get("phone_mfa", ""),
-            "phone_people": "",
-            "discrepancies": "",
+            "phone_people": phone_people if has_people else "НЕТ в DP",
+            "discrepancies": "; ".join(mfa_remarks),
         })
 
     for r in rows_people:
