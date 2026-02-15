@@ -134,6 +134,33 @@
     updateFilterOptions();
   }
 
+  /**
+   * Возвращает строки, прошедшие глобальный поиск и все колоночные фильтры,
+   * КРОМЕ фильтра по колонке excludeKey (чтобы в её dropdown показать
+   * все доступные варианты с учётом остальных фильтров).
+   */
+  function rowsFilteredExcept(excludeKey) {
+    var globalFilter = (filterInput ? filterInput.value : "").trim().toLowerCase();
+    var rows = cachedRows;
+
+    if (globalFilter) {
+      rows = rows.filter(function (row) {
+        return JSON.stringify(row).toLowerCase().indexOf(globalFilter) !== -1;
+      });
+    }
+
+    COLUMNS.forEach(function (col) {
+      if (col.key === excludeKey) return;
+      var f = colFilters[col.key] || "";
+      if (!f) return;
+      rows = rows.filter(function (row) {
+        return String(row[col.key] == null ? "" : row[col.key]) === f;
+      });
+    });
+
+    return rows;
+  }
+
   function updateFilterOptions() {
     var selects = thead.querySelectorAll(".thead-filters select");
     for (var i = 0; i < selects.length; i++) {
@@ -141,14 +168,15 @@
       var key = sel.dataset.key;
       var prev = colFilters[key] || "";
 
+      // Варианты — только из строк, прошедших все ДРУГИЕ фильтры
+      var available = rowsFilteredExcept(key);
       var vals = {};
-      for (var j = 0; j < cachedRows.length; j++) {
-        var v = cachedRows[j][key];
+      for (var j = 0; j < available.length; j++) {
+        var v = available[j][key];
         if (v != null && v !== "") vals[String(v)] = true;
       }
       var isDate = !!DATE_KEYS[key];
       var sorted = Object.keys(vals).sort(function (a, b) {
-        // Заглушки «НЕТ …» всегда первыми
         var aStub = a.indexOf("НЕТ") === 0 ? 0 : 1;
         var bStub = b.indexOf("НЕТ") === 0 ? 0 : 1;
         if (aStub !== bStub) return aStub - bStub;
@@ -267,6 +295,7 @@
     tbody.innerHTML = "";
     renderChunk();
     updateFooter();
+    updateFilterOptions();
   }
 
   // ─── Подгрузка порции строк ───
