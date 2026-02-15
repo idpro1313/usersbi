@@ -102,6 +102,7 @@ def group_members(
                 "display_name": r.display_name or "",
                 "email": r.email or "",
                 "enabled": enabled_str,
+                "password_last_set": r.password_last_set or "",
                 "title": r.title or "",
                 "department": r.department or "",
                 "company": r.company or "",
