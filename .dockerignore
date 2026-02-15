@@ -2,6 +2,7 @@
 .gitignore
 tmp/
 data/
+work/
 *.md
 .venv
 venv

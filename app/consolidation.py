@@ -11,6 +11,22 @@ def _norm(s):
     return "" if s in ("nan", "None", "#N/A") else s
 
 
+def _norm_key_login(s):
+    """Нормализация логина/identity для сопоставления (без учёта регистра, без префикса домена)."""
+    k = _norm(s)
+    if not k:
+        return ""
+    if "\\" in k:
+        k = k.split("\\")[-1]
+    return k.lower()
+
+
+def _norm_key_uuid(s):
+    """Нормализация StaffUUID для сопоставления."""
+    k = _norm(s)
+    return k.lower() if k else ""
+
+
 def _norm_phone(s):
     s = _norm(s)
     if not s:
@@ -65,18 +81,19 @@ def build_consolidated(db: Session) -> list[dict]:
     rows_mfa = [to_mfa(r) for r in mfa_rows]
     rows_people = [to_people(r) for r in people_rows]
 
-    mfa_by_identity = {r["identity"]: r for r in rows_mfa if r["identity"]}
-    people_by_uuid = {r["staff_uuid"]: r for r in rows_people if r["staff_uuid"]}
-    ad_logins = {r["login"] for r in rows_ad if r["login"]}
-    ad_uuids = {r["staff_uuid"] for r in rows_ad if r["staff_uuid"]}
+    # Словари по нормализованным ключам, чтобы связывать данные между источниками
+    mfa_by_identity = {_norm_key_login(r["identity"]): r for r in rows_mfa if r["identity"]}
+    people_by_uuid = {_norm_key_uuid(r["staff_uuid"]): r for r in rows_people if r["staff_uuid"]}
+    ad_logins = {_norm_key_login(r["login"]) for r in rows_ad if r["login"]}
+    ad_uuids = {_norm_key_uuid(r["staff_uuid"]) for r in rows_ad if r["staff_uuid"]}
 
     result = []
 
     for r in rows_ad:
         login = r["login"]
         uuid = r["staff_uuid"]
-        mfa = mfa_by_identity.get(login, {})
-        people = people_by_uuid.get(uuid, {})
+        mfa = mfa_by_identity.get(_norm_key_login(login), {})
+        people = people_by_uuid.get(_norm_key_uuid(uuid), {})
 
         email_ad = r.get("email_ad", "")
         email_mfa = mfa.get("email_mfa", "")
@@ -139,7 +156,7 @@ def build_consolidated(db: Session) -> list[dict]:
         })
 
     for r in rows_mfa:
-        if r["identity"] in ad_logins:
+        if _norm_key_login(r["identity"]) in ad_logins:
             continue
         result.append({
             "source": "MFA",
@@ -166,7 +183,7 @@ def build_consolidated(db: Session) -> list[dict]:
         })
 
     for r in rows_people:
-        if r["staff_uuid"] in ad_uuids:
+        if _norm_key_uuid(r["staff_uuid"]) in ad_uuids:
             continue
         result.append({
             "source": "Кадры",

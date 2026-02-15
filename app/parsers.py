@@ -2,7 +2,14 @@
 import io
 import re
 import pandas as pd
-from app.config import AD_COLUMNS, MFA_COLUMNS, PEOPLE_COLUMNS, PEOPLE_EXTRA_COLUMNS
+from app.config import (
+    AD_COLUMNS,
+    MFA_COLUMNS,
+    PEOPLE_COLUMNS,
+    PEOPLE_EXTRA_COLUMNS,
+    AD_COLUMN_ALTERNATIVES,
+    PEOPLE_COLUMN_ALTERNATIVES,
+)
 
 
 def _norm(s):
@@ -17,7 +24,19 @@ def _safe_date(x):
         return ""
     if hasattr(x, "strftime"):
         return x.strftime("%d.%m.%Y")
-    return str(x).strip()
+    s = str(x).strip()
+    # Убираем время, если формат "дд.мм.гггг чч:мм:сс"
+    if re.match(r"\d{2}\.\d{2}\.\d{4}\s", s):
+        s = s.split()[0]
+    return s
+
+
+def _extract_domain_from_dn(dn: str) -> str:
+    """Извлекает доменное имя из distinguishedName (DC=aplana,DC=com -> aplana.com)."""
+    if not dn:
+        return ""
+    parts = re.findall(r"DC=([^,]+)", str(dn), re.IGNORECASE)
+    return ".".join(parts) if parts else ""
 
 
 def parse_ad(content: bytes, filename: str) -> tuple[list[dict], str | None]:
@@ -30,10 +49,30 @@ def parse_ad(content: bytes, filename: str) -> tuple[list[dict], str | None]:
             df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=",", on_bad_lines="skip")
             if df.shape[1] == 1:
                 df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=";", on_bad_lines="skip")
+        # Маппинг: сначала точное совпадение, потом case-insensitive
         inv = {v: k for k, v in AD_COLUMNS.items() if v}
         df = df.rename(columns=lambda c: inv.get(str(c).strip(), c))
+        # Case-insensitive fallback
+        col_lower = {str(c).strip().lower(): c for c in df.columns}
+        for target, alternatives in AD_COLUMN_ALTERNATIVES.items():
+            if target not in df.columns:
+                for alt in alternatives:
+                    real = col_lower.get(alt.lower())
+                    if real and real in df.columns:
+                        df = df.rename(columns={real: target})
+                        col_lower = {str(c).strip().lower(): c for c in df.columns}
+                        break
         if "domain" not in df.columns:
-            df["domain"] = ""
+            # Извлекаем домен из distinguishedName, если он есть
+            dn_col = None
+            for c in df.columns:
+                if str(c).strip().lower() == "distinguishedname":
+                    dn_col = c
+                    break
+            if dn_col:
+                df["domain"] = df[dn_col].apply(lambda x: _extract_domain_from_dn(str(x) if pd.notna(x) else ""))
+            else:
+                df["domain"] = ""
         rows = []
         for _, r in df.iterrows():
             rows.append({
@@ -83,6 +122,16 @@ def parse_people(content: bytes, filename: str) -> tuple[list[dict], str | None]
         for k, v in PEOPLE_EXTRA_COLUMNS.items():
             if k in df.columns and v not in df.columns:
                 df = df.rename(columns={k: v})
+        # Case-insensitive fallback
+        col_lower = {str(c).strip().lower(): c for c in df.columns}
+        for target, alternatives in PEOPLE_COLUMN_ALTERNATIVES.items():
+            if target not in df.columns:
+                for alt in alternatives:
+                    real = col_lower.get(alt.lower())
+                    if real and real in df.columns:
+                        df = df.rename(columns={real: target})
+                        col_lower = {str(c).strip().lower(): c for c in df.columns}
+                        break
         rows = []
         for _, r in df.iterrows():
             rows.append({

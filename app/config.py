@@ -7,18 +7,31 @@ DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'app.db'}")
 
-# Маппинг колонок источников (как в config_columns)
+# ======================================================================
+# Маппинг колонок источников
+# Ключ = внутреннее имя поля, значение = имя колонки в файле (основное)
+# ======================================================================
+
+# AD: файл All_Uers_all_domain_AD.xlsx
+# Фактические колонки: DisplayName, mail, samaccountname, title, manager,
+#   enabled, distinguishedName, company, department, mobile, l,
+#   telephoneNumber, employeeNumber, StaffUUID, info, PasswordLastSet,
+#   groups, expiryDate
 AD_COLUMNS = {
-    "login": "SamAccountName",
-    "domain": "Domain",
-    "enabled": "Enabled",
+    "login": "samaccountname",
+    "domain": "",                          # домен извлекается из distinguishedName
+    "enabled": "enabled",
     "password_last_set": "PasswordLastSet",
-    "account_expires": "AccountExpirationDate",
-    "email": "Mail",
+    "account_expires": "expiryDate",
+    "email": "mail",
     "phone": "telephoneNumber",
     "display_name": "DisplayName",
-    "staff_uuid": "extensionAttribute1",
+    "staff_uuid": "StaffUUID",
 }
+
+# MFA: файл multifactor user.csv (разделитель ;)
+# Фактические колонки: Identity, Email, Name, Phones, LastLoginDate,
+#   CreatedAt, Status, Groups, IsEnrolled, Authenticators, IsSpammer, Id, Ldap
 MFA_COLUMNS = {
     "identity": "Identity",
     "email": "Email",
@@ -30,11 +43,42 @@ MFA_COLUMNS = {
     "is_enrolled": "IsEnrolled",
     "authenticators": "Authenticators",
 }
+
+# Кадры: файл «Сотрудники с телефонами V1 13.02.2026.xlsx», лист Develonica.People
+# Фактические колонки: UUID, Employee, Телефон, Unit, Hub,
+#   Employment Status, Unit Manager (RM), Work Format, HR BP, E-mail
 PEOPLE_COLUMNS = {
-    "staff_uuid": "StaffUUID",
-    "fio": "FIO",
-    "email": "Email",
-    "phone": "Phone",
+    "staff_uuid": "UUID",
+    "fio": "Employee",
+    "email": "E-mail",
+    "phone": "Телефон",
 }
 
-PEOPLE_EXTRA_COLUMNS = {"ФИО": "fio", "Телефон": "phone", "Мобильный": "phone"}
+# Русские/альтернативные имена колонок кадров (для совместимости с другими выгрузками)
+PEOPLE_EXTRA_COLUMNS = {
+    "ФИО": "fio",
+    "Мобильный": "phone",
+    "Phone": "phone",
+    "Email": "email",
+    "FIO": "fio",
+    "StaffUUID": "staff_uuid",
+}
+
+# Альтернативные имена колонок для автоопределения
+AD_COLUMN_ALTERNATIVES = {
+    "login": ["samaccountname", "SamAccountName", "sAMAccountName", "Логин", "Login", "Account", "UserPrincipalName"],
+    "staff_uuid": ["StaffUUID", "extensionAttribute1", "extensionAttribute2", "UUID", "Идентификатор сотрудника"],
+    "display_name": ["DisplayName", "Name", "ФИО", "Display name"],
+    "email": ["mail", "Mail", "Email", "EmailAddress", "E-mail"],
+    "phone": ["telephoneNumber", "mobile", "Phone", "Телефон", "Мобильный"],
+    "domain": ["Domain", "Домен", "DomainName"],
+    "account_expires": ["expiryDate", "AccountExpirationDate", "AccountExpires"],
+    "password_last_set": ["PasswordLastSet", "passwordLastSet"],
+    "enabled": ["enabled", "Enabled"],
+}
+PEOPLE_COLUMN_ALTERNATIVES = {
+    "staff_uuid": ["UUID", "StaffUUID", "Идентификатор", "extensionAttribute1"],
+    "fio": ["Employee", "FIO", "ФИО", "Name", "ФИО сотрудника"],
+    "email": ["E-mail", "Email", "Mail"],
+    "phone": ["Телефон", "Phone", "Мобильный", "mobile"],
+}
