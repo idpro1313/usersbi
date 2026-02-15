@@ -121,8 +121,6 @@ def build_consolidated(db: Session) -> list[dict]:
         remarks = []
         if not has_people:
             remarks.append("Нет в кадрах")
-        if not has_mfa:
-            remarks.append("Нет MFA")
         if email_ad and email_mfa and email_ad != email_mfa:
             remarks.append("Email AD≠MFA")
         if email_ad and email_people and email_ad != email_people:
