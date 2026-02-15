@@ -52,7 +52,60 @@ html, body {
   height: 100vh;
 }
 
-/* ─── Шапка (сворачиваемая) ─── */
+/* ═══════════════════════════════════════════════════════
+   Главная навигация
+   ═══════════════════════════════════════════════════════ */
+.main-nav {
+  flex-shrink: 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 1rem;
+}
+
+.main-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  height: 42px;
+}
+
+.main-nav-brand {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--accent);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.main-nav-links {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.main-nav-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  border-radius: 5px;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.main-nav-item:hover {
+  color: var(--text);
+  background: var(--hover-bg);
+}
+
+.main-nav-item.active {
+  color: var(--accent);
+  background: var(--hover-bg);
+}
+
+/* ─── Шапка (совместимость, старый стиль) ─── */
 .top-bar {
   flex-shrink: 0;
   padding: 0.75rem 1rem;
@@ -79,6 +132,30 @@ html, body {
   color: var(--muted);
   font-size: 0.8rem;
   margin: 0;
+}
+
+/* ─── Страница с прокруткой (загрузка) ─── */
+.page-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.page-inner {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem;
+}
+
+.page-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+.page-subtitle {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0 0 1.25rem 0;
 }
 
 /* ─── Панель загрузки (сворачиваемая) ─── */

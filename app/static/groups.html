@@ -3,27 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Группы AD</title>
+  <title>Группы AD — UsersBI</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📊</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <div class="layout">
 
-    <!-- Шапка -->
-    <div class="top-bar">
-      <div class="top-bar-row">
-        <div>
-          <h1>Анализ групп AD</h1>
-          <p class="subtitle">Состав групп Active Directory по доменам</p>
-        </div>
-        <div class="nav-links">
-          <a href="/" class="nav-link">← Сводная</a>
-          <a href="/users" class="nav-link">Пользователи</a>
-          <a href="/structure" class="nav-link">Структура OU</a>
+    <!-- Навигация -->
+    <nav class="main-nav">
+      <div class="main-nav-inner">
+        <span class="main-nav-brand">UsersBI</span>
+        <div class="main-nav-links">
+          <a href="/upload" class="main-nav-item">Загрузка</a>
+          <a href="/" class="main-nav-item">Сводная</a>
+          <a href="/users" class="main-nav-item">Пользователи</a>
+          <a href="/groups" class="main-nav-item active">Группы AD</a>
+          <a href="/structure" class="main-nav-item">Структура OU</a>
         </div>
       </div>
-    </div>
+    </nav>
 
     <!-- Split-layout: дерево + таблица -->
     <div class="groups-layout">

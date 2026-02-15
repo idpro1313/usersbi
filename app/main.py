@@ -39,6 +39,12 @@ async def index():
     return html
 
 
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_page():
+    html = (STATIC_DIR / "upload.html").read_text(encoding="utf-8")
+    return html
+
+
 @app.get("/groups", response_class=HTMLResponse)
 async def groups_page():
     html = (STATIC_DIR / "groups.html").read_text(encoding="utf-8")

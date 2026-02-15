@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Загрузка данных — UsersBI</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📊</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="layout">
+
+    <!-- Навигация -->
+    <nav class="main-nav">
+      <div class="main-nav-inner">
+        <span class="main-nav-brand">UsersBI</span>
+        <div class="main-nav-links">
+          <a href="/upload" class="main-nav-item active">Загрузка</a>
+          <a href="/" class="main-nav-item">Сводная</a>
+          <a href="/users" class="main-nav-item">Пользователи</a>
+          <a href="/groups" class="main-nav-item">Группы AD</a>
+          <a href="/structure" class="main-nav-item">Структура OU</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Содержимое -->
+    <div class="page-content page-scroll">
+      <div class="page-inner">
+
+        <h1 class="page-title">Загрузка файлов</h1>
+        <p class="page-subtitle">Загрузите выгрузки из AD, MFA и кадровой системы</p>
+
+        <div class="upload-section-label">Active Directory</div>
+        <div class="upload-cards">
+          <div class="card card-ad">
+            <h3>AD — Ижевск</h3>
+            <p>Excel / CSV</p>
+            <input type="file" id="file-ad-izhevsk" accept=".csv,.xlsx,.xls" hidden>
+            <button type="button" class="btn" id="btn-ad-izhevsk">Загрузить</button>
+            <button type="button" class="btn btn-danger" id="btn-clear-ad-izhevsk">Очистить</button>
+            <div class="upload-status" id="status-ad-izhevsk"></div>
+          </div>
+          <div class="card card-ad">
+            <h3>AD — Кострома</h3>
+            <p>Excel / CSV</p>
+            <input type="file" id="file-ad-kostroma" accept=".csv,.xlsx,.xls" hidden>
+            <button type="button" class="btn" id="btn-ad-kostroma">Загрузить</button>
+            <button type="button" class="btn btn-danger" id="btn-clear-ad-kostroma">Очистить</button>
+            <div class="upload-status" id="status-ad-kostroma"></div>
+          </div>
+          <div class="card card-ad">
+            <h3>AD — Москва</h3>
+            <p>Excel / CSV</p>
+            <input type="file" id="file-ad-moscow" accept=".csv,.xlsx,.xls" hidden>
+            <button type="button" class="btn" id="btn-ad-moscow">Загрузить</button>
+            <button type="button" class="btn btn-danger" id="btn-clear-ad-moscow">Очистить</button>
+            <div class="upload-status" id="status-ad-moscow"></div>
+          </div>
+        </div>
+
+        <div class="upload-section-label">Другие источники</div>
+        <div class="upload-cards">
+          <div class="card">
+            <h3>MFA</h3>
+            <p>CSV (разделитель «;»)</p>
+            <input type="file" id="file-mfa" accept=".csv" hidden>
+            <button type="button" class="btn" id="btn-mfa">Загрузить</button>
+            <button type="button" class="btn btn-danger" id="btn-clear-mfa">Очистить</button>
+            <div class="upload-status" id="status-mfa"></div>
+          </div>
+          <div class="card">
+            <h3>Кадры</h3>
+            <p>Excel, первый лист</p>
+            <input type="file" id="file-people" accept=".xlsx,.xls" hidden>
+            <button type="button" class="btn" id="btn-people">Загрузить</button>
+            <button type="button" class="btn btn-danger" id="btn-clear-people">Очистить</button>
+            <div class="upload-status" id="status-people"></div>
+          </div>
+        </div>
+
+        <div class="stats" id="stats"></div>
+        <div style="margin-top: 1rem;">
+          <button type="button" class="btn btn-danger" id="btn-clear-all">Очистить всю БД</button>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+  <script src="/static/upload.js"></script>
+</body>
+</html>

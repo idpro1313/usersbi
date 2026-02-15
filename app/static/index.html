@@ -3,82 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Сводная AD / MFA / Кадры</title>
+  <title>Сводная — UsersBI</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📊</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <div class="layout">
 
-    <!-- Шапка -->
-    <div class="top-bar">
-      <div class="top-bar-row">
-        <div>
-          <h1>Сводная по сотрудникам</h1>
-          <p class="subtitle">AD + MFA + Кадры — аналитика и сверка данных</p>
-        </div>
-        <div class="nav-links">
-          <a href="/users" class="nav-link">Пользователи</a>
-          <a href="/groups" class="nav-link">Группы AD</a>
-          <a href="/structure" class="nav-link">Структура OU</a>
-          <button type="button" class="toggle-btn" id="toggle-uploads">Загрузка файлов ▼</button>
+    <!-- Навигация -->
+    <nav class="main-nav">
+      <div class="main-nav-inner">
+        <span class="main-nav-brand">UsersBI</span>
+        <div class="main-nav-links">
+          <a href="/upload" class="main-nav-item">Загрузка</a>
+          <a href="/" class="main-nav-item active">Сводная</a>
+          <a href="/users" class="main-nav-item">Пользователи</a>
+          <a href="/groups" class="main-nav-item">Группы AD</a>
+          <a href="/structure" class="main-nav-item">Структура OU</a>
         </div>
       </div>
-    </div>
-
-    <!-- Панель загрузки (сворачиваемая) -->
-    <div class="uploads-panel" id="uploads-panel">
-      <div class="upload-section-label">Active Directory</div>
-      <div class="upload-cards">
-        <div class="card card-ad">
-          <h3>AD — Ижевск</h3>
-          <p>Excel / CSV</p>
-          <input type="file" id="file-ad-izhevsk" accept=".csv,.xlsx,.xls" hidden>
-          <button type="button" class="btn" id="btn-ad-izhevsk">Загрузить</button>
-          <button type="button" class="btn btn-danger" id="btn-clear-ad-izhevsk">Очистить</button>
-          <div class="upload-status" id="status-ad-izhevsk"></div>
-        </div>
-        <div class="card card-ad">
-          <h3>AD — Кострома</h3>
-          <p>Excel / CSV</p>
-          <input type="file" id="file-ad-kostroma" accept=".csv,.xlsx,.xls" hidden>
-          <button type="button" class="btn" id="btn-ad-kostroma">Загрузить</button>
-          <button type="button" class="btn btn-danger" id="btn-clear-ad-kostroma">Очистить</button>
-          <div class="upload-status" id="status-ad-kostroma"></div>
-        </div>
-        <div class="card card-ad">
-          <h3>AD — Москва</h3>
-          <p>Excel / CSV</p>
-          <input type="file" id="file-ad-moscow" accept=".csv,.xlsx,.xls" hidden>
-          <button type="button" class="btn" id="btn-ad-moscow">Загрузить</button>
-          <button type="button" class="btn btn-danger" id="btn-clear-ad-moscow">Очистить</button>
-          <div class="upload-status" id="status-ad-moscow"></div>
-        </div>
-      </div>
-      <div class="upload-section-label">Другие источники</div>
-      <div class="upload-cards">
-        <div class="card">
-          <h3>MFA</h3>
-          <p>CSV (разделитель «;»)</p>
-          <input type="file" id="file-mfa" accept=".csv" hidden>
-          <button type="button" class="btn" id="btn-mfa">Загрузить</button>
-          <button type="button" class="btn btn-danger" id="btn-clear-mfa">Очистить</button>
-          <div class="upload-status" id="status-mfa"></div>
-        </div>
-        <div class="card">
-          <h3>Кадры</h3>
-          <p>Excel, первый лист</p>
-          <input type="file" id="file-people" accept=".xlsx,.xls" hidden>
-          <button type="button" class="btn" id="btn-people">Загрузить</button>
-          <button type="button" class="btn btn-danger" id="btn-clear-people">Очистить</button>
-          <div class="upload-status" id="status-people"></div>
-        </div>
-      </div>
-      <div class="stats" id="stats"></div>
-      <div style="margin-top: 0.5rem;">
-        <button type="button" class="btn btn-danger" id="btn-clear-all">Очистить всю БД</button>
-      </div>
-    </div>
+    </nav>
 
     <!-- Тулбар таблицы -->
     <div class="table-toolbar">
