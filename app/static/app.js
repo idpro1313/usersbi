@@ -1,5 +1,6 @@
 (function () {
   var API = "";
+  var CHUNK = 200; // строк за одну подгрузку
 
   // ─── Определение колонок таблицы ───
   var COLUMNS = [
@@ -27,15 +28,21 @@
     { key: "discrepancies",      label: "Расхождения" }
   ];
 
+  // Общее кол-во колонок включая "#"
+  var TOTAL_COLS = COLUMNS.length + 1;
+
   // ─── Состояние ───
   var cachedRows = [];
+  var filteredRows = [];  // отфильтрованные + отсортированные
+  var renderedCount = 0;  // сколько строк уже в DOM
   var sortCol = null;
-  var sortDir = "asc";        // "asc" | "desc"
-  var colFilters = {};         // { key: "строка" }
+  var sortDir = "asc";
+  var colFilters = {};
 
   // ─── DOM ───
   var thead = document.getElementById("thead");
   var tbody = document.getElementById("tbody");
+  var tableContainer = document.querySelector(".table-container");
   var tableFooter = document.getElementById("table-footer");
   var filterInput = document.getElementById("filter");
   var btnRefresh = document.getElementById("btn-refresh");
@@ -49,19 +56,27 @@
   }
 
   function rowClass(source) {
-    if (source === "AD") return "source-ad";
+    if (!source) return "";
+    if (source.indexOf("AD") === 0) return "source-ad";
     if (source === "MFA") return "source-mfa";
     if (source === "Кадры") return "source-people";
     return "";
   }
 
-  // ─── Генерация заголовков (два ряда: метки + фильтры) ───
+  // ─── Генерация заголовков ───
   function buildThead() {
     thead.innerHTML = "";
 
     // Ряд 1: метки + сортировка
     var trLabels = document.createElement("tr");
     trLabels.className = "thead-labels";
+
+    // Колонка "#"
+    var thNum = document.createElement("th");
+    thNum.className = "col-num";
+    thNum.textContent = "#";
+    trLabels.appendChild(thNum);
+
     COLUMNS.forEach(function (col) {
       var th = document.createElement("th");
       th.className = "sortable";
@@ -72,9 +87,15 @@
     });
     thead.appendChild(trLabels);
 
-    // Ряд 2: фильтры по столбцам (select)
+    // Ряд 2: фильтры
     var trFilters = document.createElement("tr");
     trFilters.className = "thead-filters";
+
+    // Пустая ячейка под "#"
+    var thNumF = document.createElement("th");
+    thNumF.className = "col-num";
+    trFilters.appendChild(thNumF);
+
     COLUMNS.forEach(function (col) {
       var th = document.createElement("th");
       var sel = document.createElement("select");
@@ -82,7 +103,7 @@
       sel.dataset.key = col.key;
       sel.addEventListener("change", function () {
         colFilters[col.key] = sel.value;
-        renderTable();
+        applyFilters();
       });
       th.appendChild(sel);
       trFilters.appendChild(th);
@@ -100,7 +121,6 @@
       var key = sel.dataset.key;
       var prev = colFilters[key] || "";
 
-      // Собираем уникальные непустые значения
       var vals = {};
       for (var j = 0; j < cachedRows.length; j++) {
         var v = cachedRows[j][key];
@@ -110,7 +130,6 @@
         return a.localeCompare(b, "ru");
       });
 
-      // Формируем options
       sel.innerHTML = "";
       var optAll = document.createElement("option");
       optAll.value = "";
@@ -124,10 +143,8 @@
         sel.appendChild(opt);
       }
 
-      // Восстанавливаем выбранное значение
       sel.value = prev;
       if (sel.value !== prev) {
-        // Значение пропало из данных — сброс
         colFilters[key] = "";
         sel.value = "";
       }
@@ -135,7 +152,7 @@
   }
 
   function updateSortIcons() {
-    var ths = thead.querySelectorAll(".thead-labels th");
+    var ths = thead.querySelectorAll(".thead-labels th.sortable");
     for (var i = 0; i < ths.length; i++) {
       var icon = ths[i].querySelector(".sort-icon");
       var key = ths[i].dataset.key;
@@ -155,11 +172,11 @@
       sortDir = "asc";
     }
     updateSortIcons();
-    renderTable();
+    applyFilters();
   }
 
-  // ─── Фильтрация + сортировка + рендер ───
-  function renderTable() {
+  // ─── Фильтрация + сортировка → filteredRows ───
+  function applyFilters() {
     var globalFilter = (filterInput ? filterInput.value : "").trim().toLowerCase();
     var rows = cachedRows;
 
@@ -170,7 +187,7 @@
       });
     }
 
-    // 2) Фильтры по столбцам (точное совпадение из select)
+    // 2) Фильтры по столбцам
     COLUMNS.forEach(function (col) {
       var f = colFilters[col.key] || "";
       if (!f) return;
@@ -191,41 +208,89 @@
       });
     }
 
-    // 4) Рендер строк
-    tbody.innerHTML = rows.map(function (row) {
-      var inactive = row.uz_active === "Нет";
-      var rowCls = rowClass(row.source) + (inactive ? " uz-inactive" : "");
-      var cells = COLUMNS.map(function (col) {
-        var cls = col.key === "discrepancies" ? " class=\"discrepancy\"" : "";
-        return "<td" + cls + ">" + escapeHtml(row[col.key]) + "</td>";
-      }).join("");
-      return "<tr class=\"" + rowCls + "\">" + cells + "</tr>";
-    }).join("");
+    filteredRows = rows;
+    renderedCount = 0;
+    tbody.innerHTML = "";
+    renderChunk();
+    updateFooter();
+  }
 
-    // 5) Счётчик
+  // ─── Подгрузка порции строк ───
+  function renderChunk() {
+    var end = Math.min(renderedCount + CHUNK, filteredRows.length);
+    if (renderedCount >= end) return;
+
+    var fragment = document.createDocumentFragment();
+
+    for (var i = renderedCount; i < end; i++) {
+      var row = filteredRows[i];
+      var tr = document.createElement("tr");
+      var inactive = row.uz_active === "Нет";
+      tr.className = rowClass(row.source) + (inactive ? " uz-inactive" : "");
+
+      // Ячейка "#"
+      var tdNum = document.createElement("td");
+      tdNum.className = "col-num";
+      tdNum.textContent = i + 1;
+      tr.appendChild(tdNum);
+
+      // Ячейки данных
+      for (var j = 0; j < COLUMNS.length; j++) {
+        var col = COLUMNS[j];
+        var td = document.createElement("td");
+        if (col.key === "discrepancies") td.className = "discrepancy";
+        td.textContent = row[col.key] == null ? "" : row[col.key];
+        tr.appendChild(td);
+      }
+
+      fragment.appendChild(tr);
+    }
+
+    tbody.appendChild(fragment);
+    renderedCount = end;
+    updateFooter();
+  }
+
+  function updateFooter() {
     var total = cachedRows.length;
-    var shown = rows.length;
-    var suffix = shown < total ? " (показано: " + shown + ")" : "";
-    tableFooter.textContent = "Всего записей: " + total + suffix;
+    var filtered = filteredRows.length;
+    var shown = renderedCount;
+    var parts = ["Всего: " + total];
+    if (filtered < total) parts.push("найдено: " + filtered);
+    if (shown < filtered) parts.push("показано: " + shown);
+    tableFooter.textContent = parts.join(" · ");
+  }
+
+  // ─── Подгрузка при прокрутке ───
+  if (tableContainer) {
+    tableContainer.addEventListener("scroll", function () {
+      if (renderedCount >= filteredRows.length) return;
+      var el = tableContainer;
+      // Когда до конца осталось менее 300px — подгружаем
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 300) {
+        renderChunk();
+      }
+    });
   }
 
   // ─── Загрузка данных ───
   async function loadTable() {
+    tbody.innerHTML = "<tr><td colspan=\"" + TOTAL_COLS + "\">Загрузка…</td></tr>";
     try {
       var r = await fetch(API + "/api/consolidated");
       var data = await r.json();
       cachedRows = data.rows || [];
       updateFilterOptions();
-      renderTable();
+      applyFilters();
     } catch (e) {
-      tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\">Ошибка загрузки: " + escapeHtml(e.message) + "</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"" + TOTAL_COLS + "\">Ошибка загрузки: " + escapeHtml(e.message) + "</td></tr>";
       tableFooter.textContent = "";
     }
   }
 
   btnRefresh.onclick = loadTable;
   if (filterInput) {
-    filterInput.addEventListener("input", function () { renderTable(); });
+    filterInput.addEventListener("input", function () { applyFilters(); });
   }
 
   // ─── Загрузка файлов ───

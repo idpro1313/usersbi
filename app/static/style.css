@@ -332,31 +332,45 @@ html, body {
   color: var(--text);
 }
 
-/* Первая колонка (Источник) — прилипает слева */
-.data-table th:first-child,
-.data-table td:first-child {
+/* Колонка "#" — прилипает слева (40px) */
+.data-table .col-num {
   position: sticky;
   left: 0;
+  z-index: 3;
+  min-width: 40px;
+  max-width: 40px;
+  text-align: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+.data-table th.col-num { z-index: 5; background: var(--surface); }
+.data-table td.col-num { background: var(--bg); }
+
+/* Вторая колонка (Источник) — прилипает после "#" */
+.data-table th:nth-child(2),
+.data-table td:nth-child(2) {
+  position: sticky;
+  left: 40px;
   z-index: 3;
   min-width: 72px;
   max-width: 72px;
 }
 
-.data-table th:first-child { z-index: 5; background: var(--surface); }
-.data-table td:first-child { background: var(--bg); font-weight: 500; }
+.data-table th:nth-child(2) { z-index: 5; background: var(--surface); }
+.data-table td:nth-child(2) { background: var(--bg); font-weight: 500; }
 
-/* Вторая колонка (Логин) — прилипает слева после Источника */
-.data-table th:nth-child(2),
-.data-table td:nth-child(2) {
+/* Третья колонка (Логин) — прилипает после Источника */
+.data-table th:nth-child(3),
+.data-table td:nth-child(3) {
   position: sticky;
-  left: 72px;
+  left: 112px;
   z-index: 3;
   min-width: 130px;
   border-right: 2px solid var(--accent);
 }
 
-.data-table th:nth-child(2) { z-index: 5; background: var(--surface); }
-.data-table td:nth-child(2) { background: var(--bg); }
+.data-table th:nth-child(3) { z-index: 5; background: var(--surface); }
+.data-table td:nth-child(3) { background: var(--bg); }
 
 .data-table tbody tr:hover td {
   background: var(--hover-bg);
@@ -369,9 +383,9 @@ html, body {
   word-break: break-word;
 }
 
-.source-ad td:first-child { color: var(--accent); }
-.source-mfa td:first-child { color: var(--success); }
-.source-people td:first-child { color: var(--warn); }
+.source-ad td:nth-child(2) { color: var(--accent); }
+.source-mfa td:nth-child(2) { color: var(--success); }
+.source-people td:nth-child(2) { color: var(--warn); }
 
 /* Неактивные УЗ — приглушённый цвет текста */
 .uz-inactive td {
