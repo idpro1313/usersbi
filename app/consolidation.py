@@ -1,0 +1,195 @@
+# -*- coding: utf-8 -*-
+import re
+from sqlalchemy.orm import Session
+from app.database import ADRecord, MFARecord, PeopleRecord
+
+
+def _norm(s):
+    if s is None:
+        return ""
+    s = str(s).strip()
+    return "" if s in ("nan", "None", "#N/A") else s
+
+
+def _norm_phone(s):
+    s = _norm(s)
+    if not s:
+        return ""
+    return re.sub(r"\D", "", s)
+
+
+def _norm_email(s):
+    return _norm(s).lower()
+
+
+def build_consolidated(db: Session) -> list[dict]:
+    """Строит сводную таблицу из записей в БД: AD + MFA + кадры."""
+    ad_rows = db.query(ADRecord).all()
+    mfa_rows = db.query(MFARecord).all()
+    people_rows = db.query(PeopleRecord).all()
+
+    def to_ad(r):
+        return {
+            "domain": _norm(r.domain),
+            "login": _norm(r.login),
+            "enabled": r.enabled,
+            "password_last_set": _norm(r.password_last_set),
+            "account_expires": _norm(r.account_expires),
+            "email_ad": _norm_email(r.email),
+            "phone_ad": _norm_phone(r.phone),
+            "fio_ad": _norm(r.display_name),
+            "staff_uuid": _norm(r.staff_uuid),
+        }
+
+    def to_mfa(r):
+        return {
+            "identity": _norm(r.identity),
+            "email_mfa": _norm_email(r.email),
+            "phone_mfa": _norm_phone(r.phones),
+            "fio_mfa": _norm(r.name),
+            "last_login_mfa": _norm(r.last_login),
+            "created_at_mfa": _norm(r.created_at),
+            "is_enrolled": _norm(r.is_enrolled),
+            "authenticators": _norm(r.authenticators),
+        }
+
+    def to_people(r):
+        return {
+            "staff_uuid": _norm(r.staff_uuid),
+            "email_people": _norm_email(r.email),
+            "phone_people": _norm_phone(r.phone),
+            "fio_people": _norm(r.fio),
+        }
+
+    rows_ad = [to_ad(r) for r in ad_rows]
+    rows_mfa = [to_mfa(r) for r in mfa_rows]
+    rows_people = [to_people(r) for r in people_rows]
+
+    mfa_by_identity = {r["identity"]: r for r in rows_mfa if r["identity"]}
+    people_by_uuid = {r["staff_uuid"]: r for r in rows_people if r["staff_uuid"]}
+    ad_logins = {r["login"] for r in rows_ad if r["login"]}
+    ad_uuids = {r["staff_uuid"] for r in rows_ad if r["staff_uuid"]}
+
+    result = []
+
+    for r in rows_ad:
+        login = r["login"]
+        uuid = r["staff_uuid"]
+        mfa = mfa_by_identity.get(login, {})
+        people = people_by_uuid.get(uuid, {})
+
+        email_ad = r.get("email_ad", "")
+        email_mfa = mfa.get("email_mfa", "")
+        email_people = people.get("email_people", "")
+        phone_ad = r.get("phone_ad", "")
+        phone_mfa = mfa.get("phone_mfa", "")
+        phone_people = people.get("phone_people", "")
+        fio_ad = r.get("fio_ad", "")
+        fio_mfa = mfa.get("fio_mfa", "")
+        fio_people = people.get("fio_people", "")
+
+        remarks = []
+        if email_ad and email_mfa and email_ad != email_mfa:
+            remarks.append("Email AD≠MFA")
+        if email_ad and email_people and email_ad != email_people:
+            remarks.append("Email AD≠Кадры")
+        if email_mfa and email_people and email_mfa != email_people:
+            remarks.append("Email MFA≠Кадры")
+        if phone_ad and phone_mfa and phone_ad != phone_mfa:
+            remarks.append("Телефон AD≠MFA")
+        if phone_ad and phone_people and phone_ad != phone_people:
+            remarks.append("Телефон AD≠Кадры")
+        if phone_mfa and phone_people and phone_mfa != phone_people:
+            remarks.append("Телефон MFA≠Кадры")
+        if fio_ad and fio_mfa and fio_ad != fio_mfa:
+            remarks.append("ФИО AD≠MFA")
+        if fio_ad and fio_people and fio_ad != fio_people:
+            remarks.append("ФИО AD≠Кадры")
+        if fio_mfa and fio_people and fio_mfa != fio_people:
+            remarks.append("ФИО MFA≠Кадры")
+
+        en = r["enabled"]
+        if isinstance(en, bool):
+            en_str = "Да" if en else "Нет"
+        else:
+            en_str = "Да" if str(en).strip().lower() in ("true", "1", "да", "yes") else (str(en) if str(en).strip() else "")
+
+        result.append({
+            "source": "AD",
+            "domain": r["domain"],
+            "login": login,
+            "uz_active": en_str,
+            "password_last_set": r["password_last_set"],
+            "account_expires": r["account_expires"],
+            "staff_uuid": uuid,
+            "mfa_enabled": "Да" if mfa and str(mfa.get("is_enrolled", "")).lower() in ("true", "1", "да", "yes") else "Нет",
+            "mfa_created_at": mfa.get("created_at_mfa", ""),
+            "mfa_last_login": mfa.get("last_login_mfa", ""),
+            "mfa_authenticators": mfa.get("authenticators", ""),
+            "fio_ad": fio_ad,
+            "fio_mfa": fio_mfa,
+            "fio_people": fio_people,
+            "email_ad": email_ad,
+            "email_mfa": email_mfa,
+            "email_people": email_people,
+            "phone_ad": phone_ad,
+            "phone_mfa": phone_mfa,
+            "phone_people": phone_people,
+            "discrepancies": "; ".join(remarks) if remarks else "",
+        })
+
+    for r in rows_mfa:
+        if r["identity"] in ad_logins:
+            continue
+        result.append({
+            "source": "MFA",
+            "domain": "",
+            "login": r["identity"],
+            "uz_active": "",
+            "password_last_set": "",
+            "account_expires": "",
+            "staff_uuid": "",
+            "mfa_enabled": "Да",
+            "mfa_created_at": r.get("created_at_mfa", ""),
+            "mfa_last_login": r.get("last_login_mfa", ""),
+            "mfa_authenticators": r.get("authenticators", ""),
+            "fio_ad": "",
+            "fio_mfa": r.get("fio_mfa", ""),
+            "fio_people": "",
+            "email_ad": "",
+            "email_mfa": r.get("email_mfa", ""),
+            "email_people": "",
+            "phone_ad": "",
+            "phone_mfa": r.get("phone_mfa", ""),
+            "phone_people": "",
+            "discrepancies": "",
+        })
+
+    for r in rows_people:
+        if r["staff_uuid"] in ad_uuids:
+            continue
+        result.append({
+            "source": "Кадры",
+            "domain": "",
+            "login": "",
+            "uz_active": "",
+            "password_last_set": "",
+            "account_expires": "",
+            "staff_uuid": r["staff_uuid"],
+            "mfa_enabled": "",
+            "mfa_created_at": "",
+            "mfa_last_login": "",
+            "mfa_authenticators": "",
+            "fio_ad": "",
+            "fio_mfa": "",
+            "fio_people": r.get("fio_people", ""),
+            "email_ad": "",
+            "email_mfa": "",
+            "email_people": r.get("email_people", ""),
+            "phone_ad": "",
+            "phone_mfa": "",
+            "phone_people": r.get("phone_people", ""),
+            "discrepancies": "",
+        })
+
+    return result

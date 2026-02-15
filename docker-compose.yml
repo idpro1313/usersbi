@@ -1,0 +1,11 @@
+services:
+  web:
+    build: .
+    container_name: usersbi
+    ports:
+      - "3456:8000"
+    volumes:
+      # БД и настройки приложения — в локальную папку проекта (относительно каталога, откуда запускается compose)
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:////app/data/app.db

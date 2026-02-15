@@ -1,0 +1,30 @@
+# Выгрузки и локальные данные — не в репозиторий
+tmp/
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.so
+.venv/
+venv/
+env/
+
+# Среда и секреты
+.env
+.env.local
+*.local
+
+# IDE и ОС
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Логи и сборки
+*.log
+dist/
+build/
