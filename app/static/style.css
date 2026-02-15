@@ -891,3 +891,99 @@ html, body {
 .ucard-link:hover {
   text-decoration: underline;
 }
+
+/* ─── Неактивные пользователи в боковом списке ─── */
+.user-list-item.user-disabled .user-item-name {
+  color: var(--inactive-color);
+}
+.user-list-item.user-disabled .user-item-meta {
+  color: var(--inactive-color);
+  opacity: 0.7;
+}
+
+/* ─── Возможные совпадения ─── */
+.ucard-matches-title {
+  color: var(--warn);
+}
+.ucard-matches-table {
+  font-size: 0.78rem;
+  margin-top: 0.4rem;
+}
+.ucard-matches-table th,
+.ucard-matches-table td {
+  padding: 0.25rem 0.5rem;
+}
+.match-reason {
+  display: inline-block;
+  background: var(--warn);
+  color: #fff;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* ─── Popup-окно для состава групп / OU ─── */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+.popup-window {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 90vw;
+  max-width: 1100px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+}
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.popup-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.popup-close {
+  flex-shrink: 0;
+}
+.popup-body {
+  overflow: auto;
+  padding: 0.75rem 1rem 1rem;
+  flex: 1;
+}
+.popup-count {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.popup-table {
+  width: 100%;
+}
+.popup-table th,
+.popup-table td {
+  padding: 0.3rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+/* ─── Дубли логинов ─── */
+.dup-group-sep {
+  border-top: 2px solid var(--accent) !important;
+}
+
+.dup-group-alt {
+  background: var(--hover-bg);
+}

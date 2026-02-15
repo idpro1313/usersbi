@@ -17,6 +17,7 @@ from app.config import AD_DOMAINS, AD_DOMAIN_DN
 from app.groups import router as groups_router
 from app.structure import router as structure_router
 from app.users import router as users_router
+from app.duplicates import router as duplicates_router
 
 
 # ─── Хелперы ────────────────────────────────────────────────
@@ -42,6 +43,7 @@ app = FastAPI(title="Девелоника Пользователи", lifespan=li
 app.include_router(groups_router)
 app.include_router(structure_router)
 app.include_router(users_router)
+app.include_router(duplicates_router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -72,6 +74,11 @@ async def structure_page():
 @app.get("/users", response_class=HTMLResponse)
 async def users_page():
     return _read_html("users.html")
+
+
+@app.get("/duplicates", response_class=HTMLResponse)
+async def duplicates_page():
+    return _read_html("duplicates.html")
 
 
 # ─── Загрузка файлов ────────────────────────────────────────

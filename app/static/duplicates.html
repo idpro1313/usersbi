@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Дубли логинов — Девелоника Пользователи</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📊</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="layout">
+
+    <!-- Тулбар -->
+    <div class="table-toolbar">
+      <h2>Дубли логинов между AD</h2>
+      <span id="dup-stats" class="muted-text"></span>
+      <button type="button" class="btn-icon btn-export" id="btn-export" title="Выгрузить XLSX"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+    </div>
+
+    <!-- Таблица -->
+    <div class="table-scroll-wrap" id="table-wrap">
+      <table class="data-table" id="dup-table">
+        <thead id="dup-thead"></thead>
+        <tbody id="dup-tbody">
+          <tr><td colspan="12" class="muted-text">Загрузка…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+  <script src="/static/utils.js"></script>
+  <script src="/static/table-utils.js"></script>
+  <script src="/static/nav.js"></script>
+  <script src="/static/duplicates.js"></script>
+</body>
+</html>

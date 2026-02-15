@@ -39,6 +39,7 @@
       var u = filtered[i];
       var item = document.createElement("div");
       item.className = "user-list-item";
+      if (u.all_disabled) item.classList.add("user-disabled");
       item.dataset.key = u.key;
       if (u.key === selectedKey) item.classList.add("active");
 
@@ -190,6 +191,31 @@
     }
     html += "</div>";
 
+    // Возможные совпадения
+    if (data.matches && data.matches.length) {
+      html += "<div class=\"ucard-section\">";
+      html += "<h3 class=\"ucard-section-title ucard-matches-title\">Возможные совпадения (" + data.matches.length + ")</h3>";
+      html += "<table class=\"data-table ucard-matches-table\">";
+      html += "<thead><tr>";
+      html += "<th>Причина</th><th>Источник</th><th>ФИО</th><th>Email</th>";
+      html += "<th>Логин</th><th>StaffUUID</th><th>Активна</th>";
+      html += "</tr></thead><tbody>";
+      for (var k = 0; k < data.matches.length; k++) {
+        var mt = data.matches[k];
+        html += "<tr>";
+        html += "<td><span class=\"match-reason\">" + esc(mt.reason) + "</span></td>";
+        html += "<td>" + esc(mt.source) + "</td>";
+        html += "<td>" + esc(mt.fio) + "</td>";
+        html += "<td>" + esc(mt.email) + "</td>";
+        html += "<td>" + esc(mt.login) + "</td>";
+        html += "<td>" + esc(mt.staff_uuid) + "</td>";
+        html += "<td>" + esc(mt.enabled) + "</td>";
+        html += "</tr>";
+      }
+      html += "</tbody></table>";
+      html += "</div>";
+    }
+
     cardWrap.innerHTML = html;
   }
 
@@ -198,8 +224,8 @@
     var groups = groupsStr.split(";").map(function (g) { return g.trim(); }).filter(Boolean);
     if (!groups.length) return "";
     return groups.map(function (g) {
-      var href = "/groups?domain=" + encodeURIComponent(adSource) + "&group=" + encodeURIComponent(g);
-      return "<a class=\"ucard-link\" href=\"" + href + "\">" + esc(g) + "</a>";
+      var url = "/groups?domain=" + encodeURIComponent(adSource) + "&group=" + encodeURIComponent(g);
+      return "<a class=\"ucard-link\" href=\"#\" data-popup-url=\"" + esc(url) + "\" data-popup-type=\"group\" data-popup-domain=\"" + esc(adSource) + "\" data-popup-name=\"" + esc(g) + "\">" + esc(g) + "</a>";
     }).join("; ");
   }
 
@@ -214,8 +240,8 @@
     if (!ous.length) return esc(dn);
     ous.reverse();
     var path = ous.join("/");
-    var href = "/structure?domain=" + encodeURIComponent(adSource) + "&path=" + encodeURIComponent(path);
-    return "<a class=\"ucard-link\" href=\"" + href + "\">" + esc(ous.join(" › ")) + "</a>";
+    var url = "/structure?domain=" + encodeURIComponent(adSource) + "&path=" + encodeURIComponent(path);
+    return "<a class=\"ucard-link\" href=\"#\" data-popup-url=\"" + esc(url) + "\" data-popup-type=\"ou\" data-popup-domain=\"" + esc(adSource) + "\" data-popup-name=\"" + esc(path) + "\">" + esc(ous.join(" › ")) + "</a>";
   }
 
   function renderFieldsTable(pairs) {
@@ -236,6 +262,110 @@
     }
     if (!rows) return "<p class=\"muted-text\">Нет данных</p>";
     return "<table class=\"ucard-fields\">" + rows + "</table>";
+  }
+
+  // ─── Popup для групп / OU ───
+  cardWrap.addEventListener("click", function (e) {
+    var link = e.target.closest("[data-popup-type]");
+    if (!link) return;
+    e.preventDefault();
+    var type = link.dataset.popupType;
+    var domain = link.dataset.popupDomain;
+    var name = link.dataset.popupName;
+    openMembersPopup(type, domain, name);
+  });
+
+  function openMembersPopup(type, domain, name) {
+    // Определяем API-URL
+    var apiUrl;
+    var title;
+    if (type === "group") {
+      apiUrl = API + "/api/groups/members?domain=" + encodeURIComponent(domain) + "&group=" + encodeURIComponent(name);
+      title = "Группа: " + name;
+    } else {
+      apiUrl = API + "/api/structure/members?domain=" + encodeURIComponent(domain) + "&path=" + encodeURIComponent(name);
+      title = "OU: " + name.replace(/\//g, " › ");
+    }
+
+    // Создаём overlay
+    var overlay = document.createElement("div");
+    overlay.className = "popup-overlay";
+
+    var popup = document.createElement("div");
+    popup.className = "popup-window";
+
+    var header = document.createElement("div");
+    header.className = "popup-header";
+    header.innerHTML =
+      "<h3 class=\"popup-title\">" + esc(title) + "</h3>" +
+      "<button class=\"popup-close btn-icon\" title=\"Закрыть\">" +
+        "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\">" +
+          "<line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/>" +
+        "</svg>" +
+      "</button>";
+
+    var body = document.createElement("div");
+    body.className = "popup-body";
+    body.innerHTML = "<p class=\"muted-text\">Загрузка…</p>";
+
+    popup.appendChild(header);
+    popup.appendChild(body);
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+
+    // Закрытие
+    function close() { overlay.remove(); }
+    overlay.addEventListener("click", function (e) {
+      if (e.target === overlay) close();
+    });
+    header.querySelector(".popup-close").addEventListener("click", close);
+    document.addEventListener("keydown", function onEsc(e) {
+      if (e.key === "Escape") { close(); document.removeEventListener("keydown", onEsc); }
+    });
+
+    // Загружаем данные
+    fetch(apiUrl)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        var members = data.members || [];
+        if (!members.length) {
+          body.innerHTML = "<p class=\"muted-text\">Нет участников</p>";
+          return;
+        }
+
+        var cols = [
+          { key: "display_name", label: "ФИО" },
+          { key: "login",        label: "Логин" },
+          { key: "email",        label: "Email" },
+          { key: "enabled",      label: "Активна" },
+          { key: "password_last_set", label: "Смена пароля" },
+          { key: "title",        label: "Должность" },
+          { key: "department",   label: "Отдел" },
+          { key: "company",      label: "Компания" },
+        ];
+
+        var tbl = "<p class=\"popup-count\">Участников: " + members.length + "</p>";
+        tbl += "<table class=\"data-table popup-table\"><thead><tr>";
+        for (var c = 0; c < cols.length; c++) {
+          tbl += "<th>" + esc(cols[c].label) + "</th>";
+        }
+        tbl += "</tr></thead><tbody>";
+
+        for (var i = 0; i < members.length; i++) {
+          var m = members[i];
+          var rowCls = (m.enabled || "").toLowerCase() === "нет" ? " class=\"row-inactive\"" : "";
+          tbl += "<tr" + rowCls + ">";
+          for (var c2 = 0; c2 < cols.length; c2++) {
+            tbl += "<td>" + esc(m[cols[c2].key] || "") + "</td>";
+          }
+          tbl += "</tr>";
+        }
+        tbl += "</tbody></table>";
+        body.innerHTML = tbl;
+      })
+      .catch(function (e) {
+        body.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
+      });
   }
 
   userSearch.addEventListener("input", function () {

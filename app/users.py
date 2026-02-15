@@ -5,8 +5,8 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord, MFARecord, PeopleRecord
-from app.config import AD_LABELS
-from app.utils import norm, enabled_str
+from app.config import AD_LABELS, AD_SOURCE_LABELS
+from app.utils import norm, norm_email, enabled_str
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -30,6 +30,7 @@ def users_list(db: Session = Depends(get_db)):
             users[key] = {
                 "staff_uuid": uuid, "fio": "", "logins": [],
                 "sources": set(), "has_mfa": False, "has_people": False,
+                "all_disabled": True,  # все УЗ неактивны?
             }
         u = users[key]
         if not u["staff_uuid"] and uuid:
@@ -40,6 +41,9 @@ def users_list(db: Session = Depends(get_db)):
         if login and login not in u["logins"]:
             u["logins"].append(login)
         u["sources"].add(ad_label)
+        # Если хотя бы одна УЗ активна — пользователь не «полностью отключён»
+        if enabled_str(r.enabled) == "Да":
+            u["all_disabled"] = False
 
     # 2) People-записи
     for r in db.query(PeopleRecord).all():
@@ -51,6 +55,7 @@ def users_list(db: Session = Depends(get_db)):
             users[key] = {
                 "staff_uuid": uuid, "fio": "", "logins": [],
                 "sources": set(), "has_mfa": False, "has_people": False,
+                "all_disabled": False,  # нет AD — не считаем «отключённым»
             }
         u = users[key]
         if not u["staff_uuid"]:
@@ -85,6 +90,7 @@ def users_list(db: Session = Depends(get_db)):
                     "staff_uuid": "", "fio": norm(r.name) or identity,
                     "logins": [identity], "sources": {"MFA"},
                     "has_mfa": True, "has_people": False,
+                    "all_disabled": False,
                 }
             else:
                 users[key]["has_mfa"] = True
@@ -100,6 +106,7 @@ def users_list(db: Session = Depends(get_db)):
             "sources": sorted(u["sources"]),
             "has_mfa": u["has_mfa"],
             "has_people": u["has_people"],
+            "all_disabled": u.get("all_disabled", False),
         }
         for key, u in users.items()
     ]
@@ -166,15 +173,24 @@ def _build_ad_cards(ad_recs, logins):
 
 
 def _fetch_mfa_cards(logins: list[str], db: Session):
-    """Загружает MFA-карточки одним запросом (фикс N+1)."""
+    """Загружает MFA-карточки одним запросом. Точное совпадение логина (с учётом домена)."""
     if not logins:
         return []
-    conditions = [MFARecord.identity.ilike(f"%{login}%") for login in logins]
+    # Точное совпадение: identity = 'login' ИЛИ identity заканчивается на '\login'
+    conditions = []
+    for login in logins:
+        conditions.append(MFARecord.identity.ilike(login))           # exact
+        conditions.append(MFARecord.identity.ilike(f"%\\{login}"))   # DOMAIN\login
     recs = db.query(MFARecord).filter(or_(*conditions)).all()
     seen_ids = set()
     cards = []
     for r in recs:
         if r.id in seen_ids:
+            continue
+        # Дополнительная проверка: identity (без домена) должен точно совпадать с одним из логинов
+        ident = norm(r.identity)
+        ident_clean = ident.split("\\")[-1].lower() if "\\" in ident else ident.lower()
+        if ident_clean not in [l.lower() for l in logins]:
             continue
         seen_ids.add(r.id)
         cards.append({
@@ -234,6 +250,15 @@ def user_card(
     elif mfa_cards and mfa_cards[0]["name"]:
         fio = mfa_cards[0]["name"]
 
+    # --- Возможные совпадения ---
+    matches = _find_matches(
+        key, staff_uuid, fio,
+        [c["email"] for c in ad_cards if c.get("email")] +
+        ([people_card["email"]] if people_card and people_card.get("email") else []) +
+        [c["email"] for c in mfa_cards if c.get("email")],
+        db,
+    )
+
     return {
         "staff_uuid": staff_uuid,
         "fio": fio,
@@ -241,4 +266,113 @@ def user_card(
         "ad": ad_cards,
         "mfa": mfa_cards,
         "people": people_card,
+        "matches": matches,
     }
+
+
+def _find_matches(
+    own_key: str,
+    own_uuid: str,
+    fio: str,
+    emails: list[str],
+    db: Session,
+) -> list[dict]:
+    """
+    Ищет «возможные совпадения» — записи из AD, People, MFA,
+    у которых совпадает ФИО (точно) или email с текущим пользователем,
+    но они НЕ принадлежат ему напрямую (другой StaffUUID / логин).
+    """
+    if not fio and not emails:
+        return []
+
+    fio_low = fio.strip().lower() if fio else ""
+    email_set = {norm_email(e) for e in emails if norm_email(e)}
+    own_uuid_low = own_uuid.lower() if own_uuid else ""
+
+    matches: list[dict] = []
+    seen_keys: set[str] = set()
+
+    # --- AD ---
+    for r in db.query(ADRecord).all():
+        r_uuid = norm(r.staff_uuid).lower()
+        # Пропускаем записи, принадлежащие этому же пользователю
+        if own_uuid_low and r_uuid == own_uuid_low:
+            continue
+        r_fio = norm(r.display_name).strip().lower()
+        r_email = norm_email(r.email)
+        reason = []
+        if fio_low and r_fio and r_fio == fio_low:
+            reason.append("ФИО")
+        if r_email and r_email in email_set:
+            reason.append("Email")
+        if not reason:
+            continue
+        mkey = f"ad_{r.id}"
+        if mkey in seen_keys:
+            continue
+        seen_keys.add(mkey)
+        matches.append({
+            "source": AD_SOURCE_LABELS.get(r.ad_source, "AD"),
+            "fio": norm(r.display_name),
+            "email": norm(r.email),
+            "login": norm(r.login),
+            "staff_uuid": norm(r.staff_uuid),
+            "enabled": enabled_str(r.enabled),
+            "reason": ", ".join(reason),
+        })
+
+    # --- People ---
+    for r in db.query(PeopleRecord).all():
+        r_uuid = norm(r.staff_uuid).lower()
+        if own_uuid_low and r_uuid == own_uuid_low:
+            continue
+        r_fio = norm(r.fio).strip().lower()
+        r_email = norm_email(r.email)
+        reason = []
+        if fio_low and r_fio and r_fio == fio_low:
+            reason.append("ФИО")
+        if r_email and r_email in email_set:
+            reason.append("Email")
+        if not reason:
+            continue
+        mkey = f"people_{r.id}"
+        if mkey in seen_keys:
+            continue
+        seen_keys.add(mkey)
+        matches.append({
+            "source": "Кадры",
+            "fio": norm(r.fio),
+            "email": norm(r.email),
+            "login": "",
+            "staff_uuid": norm(r.staff_uuid),
+            "enabled": "",
+            "reason": ", ".join(reason),
+        })
+
+    # --- MFA ---
+    for r in db.query(MFARecord).all():
+        r_fio = norm(r.name).strip().lower()
+        r_email = norm_email(r.email)
+        reason = []
+        if fio_low and r_fio and r_fio == fio_low:
+            reason.append("ФИО")
+        if r_email and r_email in email_set:
+            reason.append("Email")
+        if not reason:
+            continue
+        mkey = f"mfa_{r.id}"
+        if mkey in seen_keys:
+            continue
+        seen_keys.add(mkey)
+        matches.append({
+            "source": "MFA",
+            "fio": norm(r.name),
+            "email": norm(r.email),
+            "login": norm(r.identity),
+            "staff_uuid": "",
+            "enabled": "",
+            "reason": ", ".join(reason),
+        })
+
+    matches.sort(key=lambda m: (m.get("reason", ""), m.get("fio", "").lower()))
+    return matches
