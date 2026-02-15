@@ -62,7 +62,7 @@ def _norm_phone(raw) -> str:
     has_plus = raw.startswith("+")
     # Оставляем только цифры
     digits = re.sub(r"\D", "", raw)
-    if not digits:
+    if not digits or digits == "0":
         return ""
     # Российский номер, начинающийся с 8 → +7
     if len(digits) == 11 and digits.startswith("8"):
