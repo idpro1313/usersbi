@@ -35,6 +35,8 @@ echo "Каталог данных: ${DATA_DIR}"
 
 docker compose "${COMPOSE_OPTS[@]}" up -d
 
+docker image prune -f
+
 echo ""
 echo "Приложение запущено. Откройте в браузере: http://localhost:3456"
 echo "БД и настройки хранятся в: ${DATA_DIR}"

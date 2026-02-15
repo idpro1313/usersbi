@@ -289,23 +289,27 @@ html, body {
 
 .col-filter {
   width: 100%;
-  padding: 0.15rem 0.3rem;
+  padding: 0.15rem 0.2rem;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--bg);
   color: var(--text);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-family: inherit;
   box-sizing: border-box;
-}
-
-.col-filter::placeholder {
-  color: var(--border);
+  cursor: pointer;
+  max-width: 180px;
+  appearance: auto;
 }
 
 .col-filter:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.col-filter option {
+  background: var(--surface);
+  color: var(--text);
 }
 
 /* Первая колонка (Источник) — прилипает слева */

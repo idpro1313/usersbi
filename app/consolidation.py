@@ -107,7 +107,14 @@ def build_consolidated(db: Session) -> list[dict]:
         fio_mfa = mfa.get("fio_mfa", "")
         fio_people = people.get("fio_people", "")
 
+        has_mfa = bool(mfa)
+        has_people = bool(people)
+
         remarks = []
+        if not has_people:
+            remarks.append("Нет в кадрах")
+        if not has_mfa:
+            remarks.append("Нет MFA")
         if email_ad and email_mfa and email_ad != email_mfa:
             remarks.append("Email AD≠MFA")
         if email_ad and email_people and email_ad != email_people:
@@ -148,20 +155,20 @@ def build_consolidated(db: Session) -> list[dict]:
             "password_last_set": r["password_last_set"],
             "account_expires": r["account_expires"],
             "staff_uuid": uuid,
-            "mfa_enabled": "Да" if mfa and str(mfa.get("is_enrolled", "")).lower() in ("true", "1", "да", "yes") else "Нет",
-            "mfa_created_at": mfa.get("created_at_mfa", ""),
-            "mfa_last_login": mfa.get("last_login_mfa", ""),
-            "mfa_authenticators": mfa.get("authenticators", ""),
+            "mfa_enabled": "Да" if has_mfa and str(mfa.get("is_enrolled", "")).lower() in ("true", "1", "да", "yes") else "Нет",
+            "mfa_created_at": mfa.get("created_at_mfa", "") if has_mfa else "НЕТ MFA",
+            "mfa_last_login": mfa.get("last_login_mfa", "") if has_mfa else "НЕТ MFA",
+            "mfa_authenticators": mfa.get("authenticators", "") if has_mfa else "НЕТ MFA",
             "fio_ad": fio_ad,
-            "fio_mfa": fio_mfa,
-            "fio_people": fio_people,
+            "fio_mfa": fio_mfa if has_mfa else "НЕТ MFA",
+            "fio_people": fio_people if has_people else "НЕТ в DP",
             "email_ad": email_ad,
-            "email_mfa": email_mfa,
-            "email_people": email_people,
+            "email_mfa": email_mfa if has_mfa else "НЕТ MFA",
+            "email_people": email_people if has_people else "НЕТ в DP",
             "phone_ad": phone_ad,
             "mobile_ad": mobile_ad,
-            "phone_mfa": phone_mfa,
-            "phone_people": phone_people,
+            "phone_mfa": phone_mfa if has_mfa else "НЕТ MFA",
+            "phone_people": phone_people if has_people else "НЕТ в DP",
             "discrepancies": "; ".join(remarks) if remarks else "",
         })
 
@@ -198,27 +205,27 @@ def build_consolidated(db: Session) -> list[dict]:
             continue
         result.append({
             "source": "Кадры",
-            "domain": "",
-            "login": "",
-            "uz_active": "",
-            "password_last_set": "",
-            "account_expires": "",
+            "domain": "НЕТ УЗ",
+            "login": "НЕТ УЗ",
+            "uz_active": "НЕТ УЗ",
+            "password_last_set": "НЕТ УЗ",
+            "account_expires": "НЕТ УЗ",
             "staff_uuid": r["staff_uuid"],
             "mfa_enabled": "",
             "mfa_created_at": "",
             "mfa_last_login": "",
             "mfa_authenticators": "",
-            "fio_ad": "",
+            "fio_ad": "НЕТ УЗ",
             "fio_mfa": "",
             "fio_people": r.get("fio_people", ""),
-            "email_ad": "",
+            "email_ad": "НЕТ УЗ",
             "email_mfa": "",
             "email_people": r.get("email_people", ""),
-            "phone_ad": "",
-            "mobile_ad": "",
+            "phone_ad": "НЕТ УЗ",
+            "mobile_ad": "НЕТ УЗ",
             "phone_mfa": "",
             "phone_people": r.get("phone_people", ""),
-            "discrepancies": "",
+            "discrepancies": "Нет УЗ в AD",
         })
 
     return result

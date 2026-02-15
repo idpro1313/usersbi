@@ -23,6 +23,7 @@ class ADRecord(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     upload_id = Column(Integer, nullable=True)
     ad_source = Column(String(50), default="", index=True)   # izhevsk / kostroma / moscow
+    # --- основные поля ---
     domain = Column(String(255), default="")
     login = Column(String(255), default="", index=True)
     enabled = Column(String(20), default="")
@@ -33,12 +34,23 @@ class ADRecord(Base):
     mobile = Column(String(100), default="")
     display_name = Column(String(255), default="")
     staff_uuid = Column(String(100), default="", index=True)
+    # --- дополнительные поля из файла AD ---
+    title = Column(String(255), default="")
+    manager = Column(Text, default="")
+    distinguished_name = Column(Text, default="")
+    company = Column(String(255), default="")
+    department = Column(String(255), default="")
+    location = Column(String(255), default="")          # поле "l" в файле
+    employee_number = Column(String(100), default="")
+    info = Column(Text, default="")
+    groups = Column(Text, default="")
 
 
 class MFARecord(Base):
     __tablename__ = "mfa_records"
     id = Column(Integer, primary_key=True, autoincrement=True)
     upload_id = Column(Integer, nullable=True)
+    # --- основные поля ---
     identity = Column(String(255), default="", index=True)
     email = Column(String(255), default="")
     name = Column(String(255), default="")
@@ -48,29 +60,55 @@ class MFARecord(Base):
     status = Column(String(50), default="")
     is_enrolled = Column(String(20), default="")
     authenticators = Column(String(255), default="")
+    # --- дополнительные поля из файла MFA ---
+    mfa_groups = Column(Text, default="")
+    is_spammer = Column(String(20), default="")
+    mfa_id = Column(String(100), default="")
+    ldap = Column(Text, default="")
 
 
 class PeopleRecord(Base):
     __tablename__ = "people_records"
     id = Column(Integer, primary_key=True, autoincrement=True)
     upload_id = Column(Integer, nullable=True)
+    # --- основные поля ---
     staff_uuid = Column(String(100), default="", index=True)
     fio = Column(String(255), default="")
     email = Column(String(255), default="")
     phone = Column(String(100), default="")
+    # --- дополнительные поля из файла People ---
+    unit = Column(String(255), default="")
+    hub = Column(String(255), default="")
+    employment_status = Column(String(100), default="")
+    unit_manager = Column(String(255), default="")
+    work_format = Column(String(100), default="")
+    hr_bp = Column(String(255), default="")
+
+
+def _migrate_table(insp, table_name, model_class):
+    """Добавляет недостающие колонки в таблицу на основе модели."""
+    existing = {c["name"] for c in insp.get_columns(table_name)}
+    for col in model_class.__table__.columns:
+        if col.name not in existing:
+            col_type = "TEXT"
+            if isinstance(col.type, String):
+                length = getattr(col.type, "length", None)
+                col_type = f"VARCHAR({length})" if length else "TEXT"
+            elif isinstance(col.type, Integer):
+                col_type = "INTEGER"
+            default = "''" if col_type != "INTEGER" else "0"
+            with engine.begin() as conn:
+                conn.execute(text(
+                    f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} DEFAULT {default}"
+                ))
 
 
 def init_db():
     Base.metadata.create_all(bind=engine)
-    # Миграция: добавить ad_source, если колонки ещё нет
     insp = sa_inspect(engine)
-    cols = [c["name"] for c in insp.get_columns("ad_records")]
-    if "ad_source" not in cols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE ad_records ADD COLUMN ad_source VARCHAR(50) DEFAULT ''"))
-    if "mobile" not in cols:
-        with engine.begin() as conn:
-            conn.execute(text("ALTER TABLE ad_records ADD COLUMN mobile VARCHAR(100) DEFAULT ''"))
+    _migrate_table(insp, "ad_records", ADRecord)
+    _migrate_table(insp, "mfa_records", MFARecord)
+    _migrate_table(insp, "people_records", PeopleRecord)
 
 
 def get_db():

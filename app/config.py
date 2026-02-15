@@ -37,6 +37,16 @@ AD_COLUMNS = {
     "mobile": "mobile",
     "display_name": "DisplayName",
     "staff_uuid": "StaffUUID",
+    # --- все остальные поля из файла ---
+    "title": "title",
+    "manager": "manager",
+    "distinguished_name": "distinguishedName",
+    "company": "company",
+    "department": "department",
+    "location": "l",
+    "employee_number": "employeeNumber",
+    "info": "info",
+    "groups": "groups",
 }
 
 # MFA: файл multifactor user.csv (разделитель ;)
@@ -52,6 +62,11 @@ MFA_COLUMNS = {
     "status": "Status",
     "is_enrolled": "IsEnrolled",
     "authenticators": "Authenticators",
+    # --- все остальные поля из файла ---
+    "mfa_groups": "Groups",
+    "is_spammer": "IsSpammer",
+    "mfa_id": "Id",
+    "ldap": "Ldap",
 }
 
 # Кадры: файл «Сотрудники с телефонами V1 13.02.2026.xlsx», лист Develonica.People
@@ -62,4 +77,11 @@ PEOPLE_COLUMNS = {
     "fio": "Employee",
     "email": "E-mail",
     "phone": "Мобильный",
+    # --- все остальные поля из файла ---
+    "unit": "Unit",
+    "hub": "Hub",
+    "employment_status": "Employment Status",
+    "unit_manager": "Unit Manager (RM)",
+    "work_format": "Work Format",
+    "hr_bp": "HR BP",
 }

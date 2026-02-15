@@ -72,27 +72,66 @@
     });
     thead.appendChild(trLabels);
 
-    // Ряд 2: фильтры по столбцам
+    // Ряд 2: фильтры по столбцам (select)
     var trFilters = document.createElement("tr");
     trFilters.className = "thead-filters";
     COLUMNS.forEach(function (col) {
       var th = document.createElement("th");
-      var inp = document.createElement("input");
-      inp.type = "text";
-      inp.className = "col-filter";
-      inp.placeholder = "…";
-      inp.dataset.key = col.key;
-      inp.value = colFilters[col.key] || "";
-      inp.addEventListener("input", function () {
-        colFilters[col.key] = inp.value;
+      var sel = document.createElement("select");
+      sel.className = "col-filter";
+      sel.dataset.key = col.key;
+      sel.addEventListener("change", function () {
+        colFilters[col.key] = sel.value;
         renderTable();
       });
-      th.appendChild(inp);
+      th.appendChild(sel);
       trFilters.appendChild(th);
     });
     thead.appendChild(trFilters);
 
     updateSortIcons();
+    updateFilterOptions();
+  }
+
+  function updateFilterOptions() {
+    var selects = thead.querySelectorAll(".thead-filters select");
+    for (var i = 0; i < selects.length; i++) {
+      var sel = selects[i];
+      var key = sel.dataset.key;
+      var prev = colFilters[key] || "";
+
+      // Собираем уникальные непустые значения
+      var vals = {};
+      for (var j = 0; j < cachedRows.length; j++) {
+        var v = cachedRows[j][key];
+        if (v != null && v !== "") vals[String(v)] = true;
+      }
+      var sorted = Object.keys(vals).sort(function (a, b) {
+        return a.localeCompare(b, "ru");
+      });
+
+      // Формируем options
+      sel.innerHTML = "";
+      var optAll = document.createElement("option");
+      optAll.value = "";
+      optAll.textContent = "\u2014 все (" + sorted.length + ")";
+      sel.appendChild(optAll);
+
+      for (var k = 0; k < sorted.length; k++) {
+        var opt = document.createElement("option");
+        opt.value = sorted[k];
+        opt.textContent = sorted[k];
+        sel.appendChild(opt);
+      }
+
+      // Восстанавливаем выбранное значение
+      sel.value = prev;
+      if (sel.value !== prev) {
+        // Значение пропало из данных — сброс
+        colFilters[key] = "";
+        sel.value = "";
+      }
+    }
   }
 
   function updateSortIcons() {
@@ -131,13 +170,12 @@
       });
     }
 
-    // 2) Фильтры по столбцам
+    // 2) Фильтры по столбцам (точное совпадение из select)
     COLUMNS.forEach(function (col) {
-      var f = (colFilters[col.key] || "").trim().toLowerCase();
+      var f = colFilters[col.key] || "";
       if (!f) return;
       rows = rows.filter(function (row) {
-        var val = (row[col.key] == null ? "" : String(row[col.key])).toLowerCase();
-        return val.indexOf(f) !== -1;
+        return String(row[col.key] == null ? "" : row[col.key]) === f;
       });
     });
 
@@ -175,6 +213,7 @@
       var r = await fetch(API + "/api/consolidated");
       var data = await r.json();
       cachedRows = data.rows || [];
+      updateFilterOptions();
       renderTable();
     } catch (e) {
       tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\">Ошибка загрузки: " + escapeHtml(e.message) + "</td></tr>";

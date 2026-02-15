@@ -67,8 +67,6 @@ def _norm_phone(raw) -> str:
     # Российский номер, начинающийся с 8 → +7
     if len(digits) == 11 and digits.startswith("8"):
         digits = "7" + digits[1:]
-    # Если номер без кода страны — нет плюса и начинается не с общеизвестных кодов — добавляем +
-    # Если плюс был — просто ставим его обратно
     return "+" + digits
 
 
@@ -163,6 +161,16 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[
                 "mobile": _norm_phone(r.get("mobile", "")),
                 "display_name": _norm(r.get("display_name", "")),
                 "staff_uuid": _norm(r.get("staff_uuid", "")),
+                # --- дополнительные поля из файла ---
+                "title": _norm(r.get("title", "")),
+                "manager": _norm(r.get("manager", "")),
+                "distinguished_name": _norm(r.get("distinguished_name", "")),
+                "company": _norm(r.get("company", "")),
+                "department": _norm(r.get("department", "")),
+                "location": _norm(r.get("location", "")),
+                "employee_number": _norm(r.get("employee_number", "")),
+                "info": _norm(r.get("info", "")),
+                "groups": _norm(r.get("groups", "")),
             })
         return rows, None
     except Exception as e:
@@ -189,6 +197,11 @@ def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:
                 "status": _norm(r.get("status", "")),
                 "is_enrolled": _norm(r.get("is_enrolled", "")),
                 "authenticators": _norm(r.get("authenticators", "")),
+                # --- дополнительные поля из файла ---
+                "mfa_groups": _norm(r.get("mfa_groups", "")),
+                "is_spammer": _norm(r.get("is_spammer", "")),
+                "mfa_id": _norm(r.get("mfa_id", "")),
+                "ldap": _norm(r.get("ldap", "")),
             })
         return rows, None
     except Exception as e:
@@ -211,6 +224,13 @@ def parse_people(content: bytes, filename: str) -> tuple[list[dict], str | None]
                 "fio": _norm(r.get("fio", "")),
                 "email": _norm(r.get("email", "")),
                 "phone": _norm_phone(r.get("phone", "")),
+                # --- дополнительные поля из файла ---
+                "unit": _norm(r.get("unit", "")),
+                "hub": _norm(r.get("hub", "")),
+                "employment_status": _norm(r.get("employment_status", "")),
+                "unit_manager": _norm(r.get("unit_manager", "")),
+                "work_format": _norm(r.get("work_format", "")),
+                "hr_bp": _norm(r.get("hr_bp", "")),
             })
         return rows, None
     except Exception as e:
