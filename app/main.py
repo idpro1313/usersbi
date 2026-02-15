@@ -199,7 +199,7 @@ async def clear_people(db: Session = Depends(get_db)):
 
 @app.get("/api/export/xlsx")
 async def export_xlsx(db: Session = Depends(get_db)):
-    """Выгружает сводную таблицу в файл Excel."""
+    """Выгружает сводную таблицу в файл Excel (без фильтров, все данные)."""
     import pandas as pd
 
     rows = build_consolidated(db)
@@ -237,7 +237,6 @@ async def export_xlsx(db: Session = Depends(get_db)):
     buf = io.BytesIO()
     with pd.ExcelWriter(buf, engine="openpyxl") as w:
         df.to_excel(w, sheet_name="Сводная", index=False)
-        # Лист с расхождениями
         if "Расхождения" in df.columns:
             diff = df[df["Расхождения"].astype(str).str.len() > 0]
             if not diff.empty:
@@ -248,6 +247,51 @@ async def export_xlsx(db: Session = Depends(get_db)):
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=Svodka_AD_MFA_People.xlsx"},
+    )
+
+
+from fastapi import Body
+from typing import List, Dict, Any
+
+
+@app.post("/api/export/table")
+async def export_table(
+    payload: Dict[str, Any] = Body(...),
+):
+    """
+    Универсальная выгрузка таблицы в XLSX.
+    Body JSON: { "columns": [{"key":"...", "label":"..."}], "rows": [...], "filename": "...", "sheet": "..." }
+    """
+    import pandas as pd
+
+    columns = payload.get("columns", [])
+    rows = payload.get("rows", [])
+    filename = payload.get("filename", "export.xlsx")
+    sheet = payload.get("sheet", "Данные")
+
+    if not rows:
+        raise HTTPException(400, "Нет данных для выгрузки")
+
+    col_keys = [c["key"] for c in columns]
+    col_labels = {c["key"]: c["label"] for c in columns}
+
+    data = []
+    for row in rows:
+        data.append({col_labels.get(k, k): row.get(k, "") for k in col_keys})
+
+    df = pd.DataFrame(data)
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+        df.to_excel(w, sheet_name=sheet[:31], index=False)
+    buf.seek(0)
+
+    safe_filename = filename.replace('"', "'")
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename}"'},
     )
 
 

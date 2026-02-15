@@ -497,11 +497,36 @@
     };
   }
 
-  // ─── Экспорт XLSX ───
+  // ─── Экспорт XLSX (с учётом фильтров) ───
   var btnExport = document.getElementById("btn-export");
   if (btnExport) {
-    btnExport.onclick = function () {
-      window.location.href = API + "/api/export/xlsx";
+    btnExport.onclick = async function () {
+      var dataToExport = filteredRows.length ? filteredRows : cachedRows;
+      if (!dataToExport.length) { alert("Нет данных для выгрузки"); return; }
+      try {
+        var r = await fetch(API + "/api/export/table", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            columns: COLUMNS.map(function (c) { return { key: c.key, label: c.label }; }),
+            rows: dataToExport,
+            filename: "Svodka_AD_MFA_People.xlsx",
+            sheet: "Сводная"
+          })
+        });
+        if (!r.ok) { alert("Ошибка экспорта"); return; }
+        var blob = await r.blob();
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "Svodka_AD_MFA_People.xlsx";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert("Ошибка: " + e.message);
+      }
     };
   }
 

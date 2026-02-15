@@ -165,6 +165,7 @@
       sortDir = "asc";
       updateSortIcons();
       renderMembers();
+      if (btnExport) btnExport.style.display = cachedMembers.length ? "" : "none";
     } catch (e) {
       tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Ошибка: " + escapeHtml(e.message) + "</td></tr>";
       ouCount.textContent = "";
@@ -328,6 +329,39 @@
   ouSearch.addEventListener("input", function () {
     renderTree(ouSearch.value);
   });
+
+  // ─── Экспорт XLSX ───
+  var btnExport = document.getElementById("btn-export");
+  if (btnExport) {
+    btnExport.onclick = async function () {
+      if (!cachedMembers.length) { alert("Нет данных для выгрузки"); return; }
+      var ouName = (selectedPath || "ou").split("/").pop().replace(/[\\/:*?"<>|]/g, "_");
+      try {
+        var r = await fetch(API + "/api/export/table", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            columns: COLUMNS.map(function (c) { return { key: c.key, label: c.label }; }),
+            rows: cachedMembers,
+            filename: "OU_" + ouName + ".xlsx",
+            sheet: ouName.substring(0, 31)
+          })
+        });
+        if (!r.ok) { alert("Ошибка экспорта"); return; }
+        var blob = await r.blob();
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "OU_" + ouName + ".xlsx";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert("Ошибка: " + e.message);
+      }
+    };
+  }
 
   // ─── Инициализация ───
   buildThead();
