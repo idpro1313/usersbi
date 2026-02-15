@@ -127,6 +127,10 @@
         if (v != null && v !== "") vals[String(v)] = true;
       }
       var sorted = Object.keys(vals).sort(function (a, b) {
+        // Заглушки «НЕТ …» всегда первыми
+        var aStub = a.indexOf("НЕТ") === 0 ? 0 : 1;
+        var bStub = b.indexOf("НЕТ") === 0 ? 0 : 1;
+        if (aStub !== bStub) return aStub - bStub;
         return a.localeCompare(b, "ru");
       });
 
