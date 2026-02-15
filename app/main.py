@@ -202,6 +202,7 @@ async def export_xlsx(db: Session = Depends(get_db)):
         "email_mfa": "Email (MFA)",
         "email_people": "Email (Кадры)",
         "phone_ad": "Телефон (AD)",
+        "mobile_ad": "Мобильный (AD)",
         "phone_mfa": "Телефон (MFA)",
         "phone_people": "Телефон (Кадры)",
         "discrepancies": "Расхождения",

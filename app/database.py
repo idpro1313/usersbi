@@ -30,6 +30,7 @@ class ADRecord(Base):
     account_expires = Column(String(50), default="")
     email = Column(String(255), default="")
     phone = Column(String(100), default="")
+    mobile = Column(String(100), default="")
     display_name = Column(String(255), default="")
     staff_uuid = Column(String(100), default="", index=True)
 
@@ -67,6 +68,9 @@ def init_db():
     if "ad_source" not in cols:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE ad_records ADD COLUMN ad_source VARCHAR(50) DEFAULT ''"))
+    if "mobile" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE ad_records ADD COLUMN mobile VARCHAR(100) DEFAULT ''"))
 
 
 def get_db():

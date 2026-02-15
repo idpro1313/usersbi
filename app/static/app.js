@@ -21,6 +21,7 @@
     { key: "email_mfa",          label: "Email (MFA)" },
     { key: "email_people",       label: "Email (Кадры)" },
     { key: "phone_ad",           label: "Тел. (AD)" },
+    { key: "mobile_ad",          label: "Моб. (AD)" },
     { key: "phone_mfa",          label: "Тел. (MFA)" },
     { key: "phone_people",       label: "Тел. (Кадры)" },
     { key: "discrepancies",      label: "Расхождения" }

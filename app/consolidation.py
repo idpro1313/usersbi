@@ -28,10 +28,8 @@ def _norm_key_uuid(s):
 
 
 def _norm_phone(s):
-    s = _norm(s)
-    if not s:
-        return ""
-    return re.sub(r"\D", "", s)
+    """Телефоны уже нормализованы при загрузке, здесь только trim."""
+    return _norm(s)
 
 
 def _norm_email(s):
@@ -53,6 +51,7 @@ def build_consolidated(db: Session) -> list[dict]:
             "account_expires": _norm(r.account_expires),
             "email_ad": _norm_email(r.email),
             "phone_ad": _norm_phone(r.phone),
+            "mobile_ad": _norm_phone(r.mobile),
             "fio_ad": _norm(r.display_name),
             "staff_uuid": _norm(r.staff_uuid),
         }
@@ -99,8 +98,11 @@ def build_consolidated(db: Session) -> list[dict]:
         email_mfa = mfa.get("email_mfa", "")
         email_people = people.get("email_people", "")
         phone_ad = r.get("phone_ad", "")
+        mobile_ad = r.get("mobile_ad", "")
         phone_mfa = mfa.get("phone_mfa", "")
         phone_people = people.get("phone_people", "")
+        # Множество AD-телефонов для сверки (оба поля)
+        ad_phones = {p for p in (phone_ad, mobile_ad) if p}
         fio_ad = r.get("fio_ad", "")
         fio_mfa = mfa.get("fio_mfa", "")
         fio_people = people.get("fio_people", "")
@@ -112,12 +114,13 @@ def build_consolidated(db: Session) -> list[dict]:
             remarks.append("Email AD≠Кадры")
         if email_mfa and email_people and email_mfa != email_people:
             remarks.append("Email MFA≠Кадры")
-        if phone_ad and phone_mfa and phone_ad != phone_mfa:
-            remarks.append("Телефон AD≠MFA")
-        if phone_ad and phone_people and phone_ad != phone_people:
-            remarks.append("Телефон AD≠Кадры")
+        # Телефон: MFA/Кадры совпадает хотя бы с одним из AD-телефонов?
+        if phone_mfa and ad_phones and phone_mfa not in ad_phones:
+            remarks.append("Тел. MFA≠AD")
+        if phone_people and ad_phones and phone_people not in ad_phones:
+            remarks.append("Тел. Кадры≠AD")
         if phone_mfa and phone_people and phone_mfa != phone_people:
-            remarks.append("Телефон MFA≠Кадры")
+            remarks.append("Тел. MFA≠Кадры")
         if fio_ad and fio_mfa and fio_ad != fio_mfa:
             remarks.append("ФИО AD≠MFA")
         if fio_ad and fio_people and fio_ad != fio_people:
@@ -156,6 +159,7 @@ def build_consolidated(db: Session) -> list[dict]:
             "email_mfa": email_mfa,
             "email_people": email_people,
             "phone_ad": phone_ad,
+            "mobile_ad": mobile_ad,
             "phone_mfa": phone_mfa,
             "phone_people": phone_people,
             "discrepancies": "; ".join(remarks) if remarks else "",
@@ -183,6 +187,7 @@ def build_consolidated(db: Session) -> list[dict]:
             "email_mfa": r.get("email_mfa", ""),
             "email_people": "",
             "phone_ad": "",
+            "mobile_ad": "",
             "phone_mfa": r.get("phone_mfa", ""),
             "phone_people": "",
             "discrepancies": "",
@@ -210,6 +215,7 @@ def build_consolidated(db: Session) -> list[dict]:
             "email_mfa": "",
             "email_people": r.get("email_people", ""),
             "phone_ad": "",
+            "mobile_ad": "",
             "phone_mfa": "",
             "phone_people": r.get("phone_people", ""),
             "discrepancies": "",

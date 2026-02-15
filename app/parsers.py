@@ -12,7 +12,11 @@ from app.config import (
 def _norm(s):
     if pd.isna(s) or s is None:
         return ""
-    s = str(s).strip()
+    # float → int, если целое (pandas читает числовые колонки как float)
+    if isinstance(s, float) and s == int(s):
+        s = str(int(s))
+    else:
+        s = str(s).strip()
     return "" if s in ("nan", "None", "#N/A") else s
 
 
@@ -29,6 +33,43 @@ def _safe_date(x):
     # Убираем время из любого формата "дата пробел время"
     s = re.split(r"\s+", s)[0]
     return s
+
+
+def _norm_phone(raw) -> str:
+    """
+    Универсальный парсер номера телефона.
+    Принимает любой формат:
+      +7 (900) 123-45-67, 8-900-123-45-67, 79001234567, 79001234567.0,
+      +44 20 7946 0958, 89001234567 и т.д.
+    Возвращает: +<цифры> (например +79001234567) или "" если не похоже на номер.
+    Для российских номеров, начинающихся с 8 — заменяет на +7.
+    """
+    if pd.isna(raw) or raw is None:
+        return ""
+    # float → int (pandas может прочитать как 7.9001234567e+10)
+    if isinstance(raw, float):
+        if raw != raw:  # NaN
+            return ""
+        raw = str(int(raw))
+    else:
+        raw = str(raw).strip()
+    if not raw or raw.lower() in ("nan", "none", "#n/a", ""):
+        return ""
+    # Убираем .0 на конце (на случай если пришла строка "79001234567.0")
+    if raw.endswith(".0"):
+        raw = raw[:-2]
+    # Запоминаем, был ли +
+    has_plus = raw.startswith("+")
+    # Оставляем только цифры
+    digits = re.sub(r"\D", "", raw)
+    if not digits:
+        return ""
+    # Российский номер, начинающийся с 8 → +7
+    if len(digits) == 11 and digits.startswith("8"):
+        digits = "7" + digits[1:]
+    # Если номер без кода страны — нет плюса и начинается не с общеизвестных кодов — добавляем +
+    # Если плюс был — просто ставим его обратно
+    return "+" + digits
 
 
 def _extract_domain_from_dn(dn: str) -> str:
@@ -118,7 +159,8 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[
                 "password_last_set": _safe_date(r.get("password_last_set")),
                 "account_expires": _safe_date(r.get("account_expires")),
                 "email": _norm(r.get("email", "")),
-                "phone": _norm(r.get("phone", "")),
+                "phone": _norm_phone(r.get("phone", "")),
+                "mobile": _norm_phone(r.get("mobile", "")),
                 "display_name": _norm(r.get("display_name", "")),
                 "staff_uuid": _norm(r.get("staff_uuid", "")),
             })
@@ -141,7 +183,7 @@ def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:
                 "identity": _norm(r.get("identity", "")),
                 "email": _norm(r.get("email", "")),
                 "name": _norm(r.get("name", "")),
-                "phones": _norm(r.get("phones", "")),
+                "phones": _norm_phone(r.get("phones", "")),
                 "last_login": _norm(r.get("last_login", "")),
                 "created_at": _norm(r.get("created_at", "")),
                 "status": _norm(r.get("status", "")),
@@ -168,7 +210,7 @@ def parse_people(content: bytes, filename: str) -> tuple[list[dict], str | None]
                 "staff_uuid": _norm(r.get("staff_uuid", "")),
                 "fio": _norm(r.get("fio", "")),
                 "email": _norm(r.get("email", "")),
-                "phone": _norm(r.get("phone", "")),
+                "phone": _norm_phone(r.get("phone", "")),
             })
         return rows, None
     except Exception as e:

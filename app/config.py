@@ -34,6 +34,7 @@ AD_COLUMNS = {
     "account_expires": "expiryDate",
     "email": "mail",
     "phone": "telephoneNumber",
+    "mobile": "mobile",
     "display_name": "DisplayName",
     "staff_uuid": "StaffUUID",
 }
