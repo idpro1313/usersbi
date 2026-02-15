@@ -252,7 +252,7 @@ def user_card(
 
     # --- Возможные совпадения ---
     matches = _find_matches(
-        key, staff_uuid, fio,
+        key, staff_uuid, logins, fio,
         [c["email"] for c in ad_cards if c.get("email")] +
         ([people_card["email"]] if people_card and people_card.get("email") else []) +
         [c["email"] for c in mfa_cards if c.get("email")],
@@ -273,6 +273,7 @@ def user_card(
 def _find_matches(
     own_key: str,
     own_uuid: str,
+    own_logins: list[str],
     fio: str,
     emails: list[str],
     db: Session,
@@ -288,6 +289,7 @@ def _find_matches(
     fio_low = fio.strip().lower() if fio else ""
     email_set = {norm_email(e) for e in emails if norm_email(e)}
     own_uuid_low = own_uuid.lower() if own_uuid else ""
+    own_logins_low = {l.lower() for l in own_logins if l}
 
     matches: list[dict] = []
     seen_keys: set[str] = set()
@@ -295,8 +297,11 @@ def _find_matches(
     # --- AD ---
     for r in db.query(ADRecord).all():
         r_uuid = norm(r.staff_uuid).lower()
+        r_login = norm(r.login).lower()
         # Пропускаем записи, принадлежащие этому же пользователю
-        if own_uuid_low and r_uuid == own_uuid_low:
+        if own_uuid_low and r_uuid and r_uuid == own_uuid_low:
+            continue
+        if r_login and r_login in own_logins_low:
             continue
         r_fio = norm(r.display_name).strip().lower()
         r_email = norm_email(r.email)
@@ -324,7 +329,7 @@ def _find_matches(
     # --- People ---
     for r in db.query(PeopleRecord).all():
         r_uuid = norm(r.staff_uuid).lower()
-        if own_uuid_low and r_uuid == own_uuid_low:
+        if own_uuid_low and r_uuid and r_uuid == own_uuid_low:
             continue
         r_fio = norm(r.fio).strip().lower()
         r_email = norm_email(r.email)
@@ -351,6 +356,11 @@ def _find_matches(
 
     # --- MFA ---
     for r in db.query(MFARecord).all():
+        r_identity = norm(r.identity)
+        r_ident_clean = r_identity.split("\\")[-1].lower() if "\\" in r_identity else r_identity.lower()
+        # Пропускаем MFA, принадлежащие этому же пользователю
+        if r_ident_clean and r_ident_clean in own_logins_low:
+            continue
         r_fio = norm(r.name).strip().lower()
         r_email = norm_email(r.email)
         reason = []
@@ -368,7 +378,7 @@ def _find_matches(
             "source": "MFA",
             "fio": norm(r.name),
             "email": norm(r.email),
-            "login": norm(r.identity),
+            "login": r_identity,
             "staff_uuid": "",
             "enabled": "",
             "reason": ", ".join(reason),
