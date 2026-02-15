@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Группы AD</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📊</text></svg>">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="layout">
+
+    <!-- Шапка -->
+    <div class="top-bar">
+      <div class="top-bar-row">
+        <div>
+          <h1>Анализ групп AD</h1>
+          <p class="subtitle">Состав групп Active Directory по доменам</p>
+        </div>
+        <div class="nav-links">
+          <a href="/" class="nav-link">← Сводная</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Split-layout: дерево + таблица -->
+    <div class="groups-layout">
+
+      <!-- Левая панель: дерево -->
+      <aside class="groups-sidebar">
+        <div class="sidebar-search">
+          <input type="text" id="group-search" placeholder="Поиск группы…">
+        </div>
+        <div class="sidebar-tree" id="sidebar-tree">
+          <p class="muted-text">Загрузка…</p>
+        </div>
+      </aside>
+
+      <!-- Правая панель: участники -->
+      <main class="groups-main">
+        <div class="groups-header" id="groups-header">
+          <h2 class="groups-title" id="groups-title">Выберите группу</h2>
+          <span class="groups-count" id="groups-count"></span>
+        </div>
+        <div class="groups-table-wrap">
+          <table class="data-table" id="members-table">
+            <thead id="members-thead"></thead>
+            <tbody id="members-tbody">
+              <tr><td colspan="8" class="muted-text">Выберите группу из дерева слева</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+
+    </div>
+
+  </div>
+  <script src="/static/groups.js"></script>
+</body>
+</html>
