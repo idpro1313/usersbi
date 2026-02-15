@@ -6,10 +6,10 @@
     { key: "source",             label: "Источник" },
     { key: "login",              label: "Логин" },
     { key: "domain",             label: "Домен" },
-    { key: "uz_active",          label: "УЗ" },
+    { key: "uz_active",          label: "УЗ активна" },
     { key: "password_last_set",  label: "Пароль" },
     { key: "account_expires",    label: "Срок УЗ" },
-    { key: "staff_uuid",         label: "UUID" },
+    { key: "staff_uuid",         label: "StaffUUID" },
     { key: "mfa_enabled",        label: "MFA" },
     { key: "mfa_created_at",     label: "MFA с" },
     { key: "mfa_last_login",     label: "Вход MFA" },
@@ -193,11 +193,13 @@
 
     // 4) Рендер строк
     tbody.innerHTML = rows.map(function (row) {
+      var inactive = row.uz_active === "Нет";
+      var rowCls = rowClass(row.source) + (inactive ? " uz-inactive" : "");
       var cells = COLUMNS.map(function (col) {
         var cls = col.key === "discrepancies" ? " class=\"discrepancy\"" : "";
         return "<td" + cls + ">" + escapeHtml(row[col.key]) + "</td>";
       }).join("");
-      return "<tr class=\"" + rowClass(row.source) + "\">" + cells + "</tr>";
+      return "<tr class=\"" + rowCls + "\">" + cells + "</tr>";
     }).join("");
 
     // 5) Счётчик

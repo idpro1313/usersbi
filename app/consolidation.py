@@ -3,6 +3,13 @@ import re
 from sqlalchemy.orm import Session
 from app.database import ADRecord, MFARecord, PeopleRecord
 
+# Короткие метки AD-доменов для поля "Источник"
+_AD_SOURCE_LABELS = {
+    "izhevsk":  "AD izh",
+    "kostroma": "AD kst",
+    "moscow":   "AD msk",
+}
+
 
 def _norm(s):
     if s is None:
@@ -44,9 +51,10 @@ def build_consolidated(db: Session) -> list[dict]:
 
     def to_ad(r):
         return {
+            "ad_source": _norm(r.ad_source),
             "domain": _norm(r.domain),
             "login": _norm(r.login),
-            "enabled": r.enabled,
+            "enabled": _norm(r.enabled),
             "password_last_set": _norm(r.password_last_set),
             "account_expires": _norm(r.account_expires),
             "email_ad": _norm_email(r.email),
@@ -148,7 +156,7 @@ def build_consolidated(db: Session) -> list[dict]:
                 en_str = str(en).strip() if str(en).strip() else ""
 
         result.append({
-            "source": "AD",
+            "source": _AD_SOURCE_LABELS.get(r.get("ad_source", ""), "AD"),
             "domain": r["domain"],
             "login": login,
             "uz_active": en_str,

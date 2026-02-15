@@ -153,7 +153,7 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[
             rows.append({
                 "domain": domain_val,
                 "login": _norm(r.get("login", "")),
-                "enabled": str(r.get("enabled", "")),
+                "enabled": _norm(r.get("enabled", "")),
                 "password_last_set": _safe_date(r.get("password_last_set")),
                 "account_expires": _safe_date(r.get("account_expires")),
                 "email": _norm(r.get("email", "")),
