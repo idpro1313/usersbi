@@ -14,6 +14,16 @@
     { key: "staff_uuid",   label: "StaffUUID" }
   ];
 
+  // Колонки с датами
+  var DATE_KEYS = { "password_last_set": true };
+
+  function dateSortKey(val) {
+    if (!val) return "";
+    var m = val.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (m) return m[3] + m[2] + m[1];
+    return val;
+  }
+
   // ─── Состояние ───
   var treeData = [];
   var cachedMembers = [];
@@ -84,9 +94,17 @@
     var rows = cachedMembers.slice();
     if (sortCol) {
       var dir = sortDir === "asc" ? 1 : -1;
+      var isDate = !!DATE_KEYS[sortCol];
       rows.sort(function (a, b) {
-        var va = (a[sortCol] == null ? "" : String(a[sortCol])).toLowerCase();
-        var vb = (b[sortCol] == null ? "" : String(b[sortCol])).toLowerCase();
+        var va = a[sortCol] == null ? "" : String(a[sortCol]);
+        var vb = b[sortCol] == null ? "" : String(b[sortCol]);
+        if (isDate) {
+          va = dateSortKey(va);
+          vb = dateSortKey(vb);
+        } else {
+          va = va.toLowerCase();
+          vb = vb.toLowerCase();
+        }
         if (va < vb) return -1 * dir;
         if (va > vb) return 1 * dir;
         return 0;

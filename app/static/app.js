@@ -55,6 +55,25 @@
     return t.innerHTML;
   }
 
+  // Колонки с датами (для корректной сортировки)
+  var DATE_KEYS = {
+    "password_last_set": true,
+    "account_expires": true,
+    "mfa_created_at": true,
+    "mfa_last_login": true
+  };
+
+  /**
+   * Преобразует дату DD.MM.YYYY → YYYYMMDD для правильной сортировки.
+   * Если формат не распознан — возвращает исходную строку.
+   */
+  function dateSortKey(val) {
+    if (!val) return "";
+    var m = val.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (m) return m[3] + m[2] + m[1]; // YYYYMMDD
+    return val;
+  }
+
   function rowClass(source) {
     if (!source) return "";
     if (source.indexOf("AD") === 0) return "source-ad";
@@ -218,9 +237,17 @@
     // 3) Сортировка
     if (sortCol) {
       var dir = sortDir === "asc" ? 1 : -1;
+      var isDate = !!DATE_KEYS[sortCol];
       rows = rows.slice().sort(function (a, b) {
-        var va = (a[sortCol] == null ? "" : String(a[sortCol])).toLowerCase();
-        var vb = (b[sortCol] == null ? "" : String(b[sortCol])).toLowerCase();
+        var va = a[sortCol] == null ? "" : String(a[sortCol]);
+        var vb = b[sortCol] == null ? "" : String(b[sortCol]);
+        if (isDate) {
+          va = dateSortKey(va);
+          vb = dateSortKey(vb);
+        } else {
+          va = va.toLowerCase();
+          vb = vb.toLowerCase();
+        }
         if (va < vb) return -1 * dir;
         if (va > vb) return  1 * dir;
         return 0;
