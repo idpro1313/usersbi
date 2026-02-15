@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 
 from app.database import init_db, get_db, Upload, ADRecord, MFARecord, PeopleRecord
-from app.parsers import parse_ad, parse_mfa, parse_people
+from app.parsers import parse_ad, parse_mfa, parse_people, get_last_parse_info
 from app.consolidation import build_consolidated
 
 
@@ -111,3 +111,9 @@ async def get_stats(db: Session = Depends(get_db)):
             "people": {"filename": last_people.filename, "at": last_people.uploaded_at.isoformat(), "rows": last_people.row_count} if last_people else None,
         },
     }
+
+
+@app.get("/api/debug/columns")
+async def debug_columns():
+    """Показывает колонки, прочитанные при последней загрузке каждого файла."""
+    return get_last_parse_info()
