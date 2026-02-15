@@ -54,40 +54,11 @@ MFA_COLUMNS = {
 }
 
 # Кадры: файл «Сотрудники с телефонами V1 13.02.2026.xlsx», лист Develonica.People
-# Фактические колонки: UUID, Employee, Телефон, Unit, Hub,
+# Фактические колонки: UUID, Employee, Мобильный, Unit, Hub,
 #   Employment Status, Unit Manager (RM), Work Format, HR BP, E-mail
 PEOPLE_COLUMNS = {
     "staff_uuid": "UUID",
     "fio": "Employee",
     "email": "E-mail",
-    "phone": "Телефон",
-}
-
-# Русские/альтернативные имена колонок кадров (для совместимости с другими выгрузками)
-PEOPLE_EXTRA_COLUMNS = {
-    "ФИО": "fio",
-    "Мобильный": "phone",
-    "Phone": "phone",
-    "Email": "email",
-    "FIO": "fio",
-    "StaffUUID": "staff_uuid",
-}
-
-# Альтернативные имена колонок для автоопределения
-AD_COLUMN_ALTERNATIVES = {
-    "login": ["samaccountname"],
-    "staff_uuid": ["StaffUUID"],
-    "display_name": ["DisplayName", "Name", "ФИО", "Display name"],
-    "email": ["mail", "Mail", "Email", "EmailAddress", "E-mail"],
-    "phone": ["telephoneNumber", "mobile", "Phone", "Телефон", "Мобильный"],
-    "domain": ["Domain", "Домен", "DomainName"],
-    "account_expires": ["expiryDate", "AccountExpirationDate", "AccountExpires"],
-    "password_last_set": ["PasswordLastSet", "passwordLastSet"],
-    "enabled": ["enabled", "Enabled"],
-}
-PEOPLE_COLUMN_ALTERNATIVES = {
-    "staff_uuid": ["UUID"],
-    "fio": ["Employee", "FIO", "ФИО", "Name", "ФИО сотрудника"],
-    "email": ["E-mail", "Email", "Mail"],
-    "phone": ["Телефон", "Phone", "Мобильный", "mobile"],
+    "phone": "Мобильный",
 }

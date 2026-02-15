@@ -6,9 +6,6 @@ from app.config import (
     AD_COLUMNS,
     MFA_COLUMNS,
     PEOPLE_COLUMNS,
-    PEOPLE_EXTRA_COLUMNS,
-    AD_COLUMN_ALTERNATIVES,
-    PEOPLE_COLUMN_ALTERNATIVES,
 )
 
 
@@ -42,42 +39,17 @@ def _extract_domain_from_dn(dn: str) -> str:
     return ".".join(parts) if parts else ""
 
 
-def _map_columns(df: pd.DataFrame, primary: dict, alternatives: dict) -> pd.DataFrame:
+def _map_columns(df: pd.DataFrame, primary: dict) -> pd.DataFrame:
     """
-    Универсальный маппинг колонок DataFrame:
-    1. Строит case-insensitive словарь реальных колонок
-    2. Ищет совпадение сначала по primary (config), потом по alternatives
-    3. Переименовывает все найденные разом
+    Прямой маппинг колонок DataFrame по точным именам из config.
+    primary: {внутреннее_имя: имя_колонки_в_файле}
     """
-    # {lowercase_col: original_col} для всех колонок DataFrame
-    real_lower = {}
-    for c in df.columns:
-        key = str(c).strip().lower()
-        if key not in real_lower:
-            real_lower[key] = c
-
-    rename_map = {}  # {original_col: target_name}
-    found_targets = set()
-
-    # 1) По primary (config): target → expected_col_name
+    rename_map = {}
     for target, expected in primary.items():
-        if not expected or target in found_targets:
+        if not expected:
             continue
-        real = real_lower.get(expected.strip().lower())
-        if real and real not in rename_map:
-            rename_map[real] = target
-            found_targets.add(target)
-
-    # 2) По alternatives: target → [alt1, alt2, ...]
-    for target, alts in alternatives.items():
-        if target in found_targets:
-            continue
-        for alt in alts:
-            real = real_lower.get(alt.strip().lower())
-            if real and real not in rename_map:
-                rename_map[real] = target
-                found_targets.add(target)
-                break
+        if expected in df.columns:
+            rename_map[expected] = target
 
     if rename_map:
         df = df.rename(columns=rename_map)
@@ -105,7 +77,7 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[
                 df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=";", on_bad_lines="skip")
 
         original_cols = list(df.columns)
-        df = _map_columns(df, AD_COLUMNS, AD_COLUMN_ALTERNATIVES)
+        df = _map_columns(df, AD_COLUMNS)
         mapped_cols = list(df.columns)
 
         # Домен: извлечь из distinguishedName, если колонки domain нет
@@ -159,7 +131,7 @@ def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:
     try:
         df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=";", on_bad_lines="skip")
         original_cols = list(df.columns)
-        df = _map_columns(df, MFA_COLUMNS, {})
+        df = _map_columns(df, MFA_COLUMNS)
         _last_parse_info["mfa"] = {"original_columns": original_cols, "mapped_columns": list(df.columns), "rows": len(df)}
         print(f"[MFA] Original columns: {original_cols}")
 
@@ -185,11 +157,7 @@ def parse_people(content: bytes, filename: str) -> tuple[list[dict], str | None]
     try:
         df = pd.read_excel(io.BytesIO(content), sheet_name=0)
         original_cols = list(df.columns)
-        # Сначала extra (русские), потом основной маппинг + alternatives
-        for k, v in PEOPLE_EXTRA_COLUMNS.items():
-            if k in df.columns and v not in df.columns:
-                df = df.rename(columns={k: v})
-        df = _map_columns(df, PEOPLE_COLUMNS, PEOPLE_COLUMN_ALTERNATIVES)
+        df = _map_columns(df, PEOPLE_COLUMNS)
         _last_parse_info["people"] = {"original_columns": original_cols, "mapped_columns": list(df.columns), "rows": len(df)}
         print(f"[People] Original columns: {original_cols}")
         print(f"[People] Mapped columns:   {list(df.columns)}")
