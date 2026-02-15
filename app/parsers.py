@@ -93,8 +93,8 @@ def get_last_parse_info() -> dict:
     return dict(_last_parse_info)
 
 
-def parse_ad(content: bytes, filename: str) -> tuple[list[dict], str | None]:
-    """Парсит CSV или Excel выгрузку AD."""
+def parse_ad(content: bytes, filename: str, override_domain: str = "") -> tuple[list[dict], str | None]:
+    """Парсит CSV или Excel выгрузку AD. override_domain — если задан, подставляется в поле domain."""
     try:
         ext = (filename or "").lower().split(".")[-1]
         if ext in ("xlsx", "xls"):
@@ -138,8 +138,9 @@ def parse_ad(content: bytes, filename: str) -> tuple[list[dict], str | None]:
 
         rows = []
         for _, r in df.iterrows():
+            domain_val = override_domain if override_domain else _norm(r.get("domain", ""))
             rows.append({
-                "domain": _norm(r.get("domain", "")),
+                "domain": domain_val,
                 "login": _norm(r.get("login", "")),
                 "enabled": str(r.get("enabled", "")),
                 "password_last_set": _safe_date(r.get("password_last_set")),

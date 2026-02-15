@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text, text, inspect as sa_inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import DATABASE_URL
 
@@ -22,6 +22,7 @@ class ADRecord(Base):
     __tablename__ = "ad_records"
     id = Column(Integer, primary_key=True, autoincrement=True)
     upload_id = Column(Integer, nullable=True)
+    ad_source = Column(String(50), default="", index=True)   # izhevsk / kostroma / moscow
     domain = Column(String(255), default="")
     login = Column(String(255), default="", index=True)
     enabled = Column(String(20), default="")
@@ -60,6 +61,12 @@ class PeopleRecord(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    # Миграция: добавить ad_source, если колонки ещё нет
+    insp = sa_inspect(engine)
+    cols = [c["name"] for c in insp.get_columns("ad_records")]
+    if "ad_source" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE ad_records ADD COLUMN ad_source VARCHAR(50) DEFAULT ''"))
 
 
 def get_db():

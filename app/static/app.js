@@ -1,12 +1,21 @@
 (function () {
   const API = "";
-  const fileAd = document.getElementById("file-ad");
+
+  // AD домены
+  var adDomains = ["izhevsk", "kostroma", "moscow"];
+  var adFiles = {};
+  var adBtns = {};
+  var adStatuses = {};
+  adDomains.forEach(function (key) {
+    adFiles[key] = document.getElementById("file-ad-" + key);
+    adBtns[key] = document.getElementById("btn-ad-" + key);
+    adStatuses[key] = document.getElementById("status-ad-" + key);
+  });
+
   const fileMfa = document.getElementById("file-mfa");
   const filePeople = document.getElementById("file-people");
-  const btnAd = document.getElementById("btn-ad");
   const btnMfa = document.getElementById("btn-mfa");
   const btnPeople = document.getElementById("btn-people");
-  const statusAd = document.getElementById("status-ad");
   const statusMfa = document.getElementById("status-mfa");
   const statusPeople = document.getElementById("status-people");
   const statsEl = document.getElementById("stats");
@@ -33,7 +42,7 @@
         setStatus(statusEl, false, data.detail || "Ошибка загрузки");
         return;
       }
-      setStatus(statusEl, true, `Загружено: ${data.rows} записей (${data.filename})`);
+      setStatus(statusEl, true, "Загружено: " + data.rows + " записей (" + data.filename + ")");
       loadStats();
       loadTable();
     } catch (e) {
@@ -41,25 +50,38 @@
     }
   }
 
-  btnAd.onclick = () => fileAd.click();
-  btnMfa.onclick = () => fileMfa.click();
-  btnPeople.onclick = () => filePeople.click();
-  fileAd.onchange = () => upload(fileAd, "/api/upload/ad", statusAd);
-  fileMfa.onchange = () => upload(fileMfa, "/api/upload/mfa", statusMfa);
-  filePeople.onchange = () => upload(filePeople, "/api/upload/people", statusPeople);
+  // AD — кнопки по доменам
+  adDomains.forEach(function (key) {
+    if (adBtns[key]) {
+      adBtns[key].onclick = function () { adFiles[key].click(); };
+    }
+    if (adFiles[key]) {
+      adFiles[key].onchange = function () { upload(adFiles[key], "/api/upload/ad/" + key, adStatuses[key]); };
+    }
+  });
+
+  btnMfa.onclick = function () { fileMfa.click(); };
+  btnPeople.onclick = function () { filePeople.click(); };
+  fileMfa.onchange = function () { upload(fileMfa, "/api/upload/mfa", statusMfa); };
+  filePeople.onchange = function () { upload(filePeople, "/api/upload/people", statusPeople); };
 
   async function loadStats() {
     try {
       const r = await fetch(API + "/api/stats");
       const s = await r.json();
-      const parts = [
-        `AD: ${s.ad_rows} записей`,
-        `MFA: ${s.mfa_rows} записей`,
-        `Кадры: ${s.people_rows} записей`,
-      ];
-      if (s.last_upload?.ad) parts.push(`Последняя выгрузка AD: ${s.last_upload.ad.filename}`);
-      if (s.last_upload?.mfa) parts.push(`MFA: ${s.last_upload.mfa.filename}`);
-      if (s.last_upload?.people) parts.push(`Кадры: ${s.last_upload.people.filename}`);
+      var parts = [];
+      if (s.ad_domains) {
+        var adParts = [];
+        for (var key in s.ad_domains) {
+          var d = s.ad_domains[key];
+          adParts.push(d.city + ": " + d.rows);
+        }
+        parts.push("AD: " + s.ad_total + " (" + adParts.join(", ") + ")");
+      }
+      parts.push("MFA: " + s.mfa_rows);
+      parts.push("Кадры: " + s.people_rows);
+      if (s.last_upload && s.last_upload.mfa) parts.push("MFA: " + s.last_upload.mfa.filename);
+      if (s.last_upload && s.last_upload.people) parts.push("Кадры: " + s.last_upload.people.filename);
       statsEl.innerHTML = parts.join(" · ");
     } catch (_) {
       statsEl.textContent = "Не удалось загрузить статистику";
@@ -140,6 +162,46 @@
     filterInput.addEventListener("input", function () {
       renderTable(cachedRows, filterInput.value);
     });
+  }
+
+  // Очистка БД по типу
+  async function clearData(endpoint, label, statusEl) {
+    if (!confirm("Очистить данные " + label + "?")) return;
+    try {
+      var r = await fetch(API + endpoint, { method: "DELETE" });
+      var data = await r.json();
+      if (r.ok) {
+        setStatus(statusEl, true, "Удалено: " + data.deleted + " записей");
+        loadStats();
+        loadTable();
+      } else {
+        setStatus(statusEl, false, "Ошибка очистки");
+      }
+    } catch (e) {
+      setStatus(statusEl, false, "Ошибка сети: " + e.message);
+    }
+  }
+
+  // Очистка AD по доменам
+  var adCityNames = { izhevsk: "AD Ижевск", kostroma: "AD Кострома", moscow: "AD Москва" };
+  adDomains.forEach(function (key) {
+    var btn = document.getElementById("btn-clear-ad-" + key);
+    if (btn) {
+      btn.onclick = function () { clearData("/api/clear/ad/" + key, adCityNames[key], adStatuses[key]); };
+    }
+  });
+
+  var btnClearMfa = document.getElementById("btn-clear-mfa");
+  var btnClearPeople = document.getElementById("btn-clear-people");
+  if (btnClearMfa) btnClearMfa.onclick = function () { clearData("/api/clear/mfa", "MFA", statusMfa); };
+  if (btnClearPeople) btnClearPeople.onclick = function () { clearData("/api/clear/people", "Кадры", statusPeople); };
+
+  // Выгрузка сводной в XLSX
+  var btnExport = document.getElementById("btn-export");
+  if (btnExport) {
+    btnExport.onclick = function () {
+      window.location.href = API + "/api/export/xlsx";
+    };
   }
 
   // Сворачивание/разворачивание панели загрузки

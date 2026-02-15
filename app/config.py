@@ -8,6 +8,15 @@ DATA_DIR.mkdir(exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'app.db'}")
 
 # ======================================================================
+# Домены AD (ключ → город, DN-суффикс для справки)
+# ======================================================================
+AD_DOMAINS = {
+    "izhevsk":  "Ижевск",     # DC=local,DC=htc-cs,DC=com
+    "kostroma": "Кострома",    # DC=ad,DC=local
+    "moscow":   "Москва",      # DC=aplana,DC=com
+}
+
+# ======================================================================
 # Маппинг колонок источников
 # Ключ = внутреннее имя поля, значение = имя колонки в файле (основное)
 # ======================================================================
@@ -66,8 +75,8 @@ PEOPLE_EXTRA_COLUMNS = {
 
 # Альтернативные имена колонок для автоопределения
 AD_COLUMN_ALTERNATIVES = {
-    "login": ["samaccountname", "SamAccountName", "sAMAccountName", "Логин", "Login", "Account", "UserPrincipalName"],
-    "staff_uuid": ["StaffUUID", "extensionAttribute1", "extensionAttribute2", "UUID", "Идентификатор сотрудника"],
+    "login": ["samaccountname"],
+    "staff_uuid": ["StaffUUID"],
     "display_name": ["DisplayName", "Name", "ФИО", "Display name"],
     "email": ["mail", "Mail", "Email", "EmailAddress", "E-mail"],
     "phone": ["telephoneNumber", "mobile", "Phone", "Телефон", "Мобильный"],
@@ -77,7 +86,7 @@ AD_COLUMN_ALTERNATIVES = {
     "enabled": ["enabled", "Enabled"],
 }
 PEOPLE_COLUMN_ALTERNATIVES = {
-    "staff_uuid": ["UUID", "StaffUUID", "Идентификатор", "extensionAttribute1"],
+    "staff_uuid": ["UUID"],
     "fio": ["Employee", "FIO", "ФИО", "Name", "ФИО сотрудника"],
     "email": ["E-mail", "Email", "Mail"],
     "phone": ["Телефон", "Phone", "Мобильный", "mobile"],

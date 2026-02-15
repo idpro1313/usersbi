@@ -65,7 +65,7 @@ html, body {
 .uploads-panel {
   overflow: hidden;
   transition: max-height 0.3s ease, padding 0.3s ease;
-  max-height: 300px;
+  max-height: 500px;
   padding: 0.75rem 1rem;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
@@ -91,10 +91,21 @@ html, body {
 
 .toggle-btn:hover { color: var(--text); }
 
+.upload-section-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+  margin-top: 0.3rem;
+}
+
 .upload-cards {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+  margin-bottom: 0.6rem;
 }
 
 .card {
@@ -103,7 +114,11 @@ html, body {
   border-radius: var(--radius);
   padding: 0.75rem 1rem;
   flex: 1;
-  min-width: 220px;
+  min-width: 180px;
+}
+
+.card-ad {
+  border-left: 3px solid var(--accent);
 }
 
 .card h3 {
@@ -136,6 +151,25 @@ html, body {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--border);
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.5rem;
+  margin-left: 0.3rem;
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-export {
+  background: var(--success);
+  color: var(--bg);
 }
 
 .upload-status {
