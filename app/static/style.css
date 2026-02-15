@@ -297,6 +297,11 @@ html, body {
   color: var(--accent);
 }
 
+.thead-labels th.filter-active {
+  color: var(--accent);
+  background: var(--hover-bg);
+}
+
 .thead-labels th .sort-icon {
   font-size: 0.65rem;
   color: var(--accent);

@@ -103,6 +103,7 @@
       sel.dataset.key = col.key;
       sel.addEventListener("change", function () {
         colFilters[col.key] = sel.value;
+        updateFilterHighlight();
         applyFilters();
       });
       th.appendChild(sel);
@@ -151,6 +152,20 @@
       if (sel.value !== prev) {
         colFilters[key] = "";
         sel.value = "";
+      }
+    }
+    updateFilterHighlight();
+  }
+
+  function updateFilterHighlight() {
+    // Подсветить заголовки столбцов с активным фильтром
+    var labelThs = thead.querySelectorAll(".thead-labels th.sortable");
+    for (var i = 0; i < labelThs.length; i++) {
+      var key = labelThs[i].dataset.key;
+      if (colFilters[key]) {
+        labelThs[i].classList.add("filter-active");
+      } else {
+        labelThs[i].classList.remove("filter-active");
       }
     }
   }
