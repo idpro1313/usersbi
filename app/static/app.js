@@ -1,8 +1,9 @@
 (function () {
-  var API = "";
-  var CHUNK = 200; // строк за одну подгрузку
+  var API = AppUtils.API;
+  var esc = AppUtils.escapeHtml;
+  var CHUNK = 200;
 
-  // ─── Определение колонок таблицы ───
+  // ─── Колонки таблицы ───
   var COLUMNS = [
     { key: "source",             label: "Источник" },
     { key: "login",              label: "Логин" },
@@ -28,16 +29,21 @@
     { key: "discrepancies",      label: "Расхождения" }
   ];
 
-  // Общее кол-во колонок включая "#"
   var TOTAL_COLS = COLUMNS.length + 1;
+
+  var DATE_KEYS = {
+    "password_last_set": true, "account_expires": true,
+    "mfa_created_at": true, "mfa_last_login": true
+  };
 
   // ─── Состояние ───
   var cachedRows = [];
-  var filteredRows = [];  // отфильтрованные + отсортированные
-  var renderedCount = 0;  // сколько строк уже в DOM
+  var filteredRows = [];
+  var renderedCount = 0;
   var sortCol = null;
   var sortDir = "asc";
   var colFilters = {};
+  var searchCache = new Map();  // Кэш строк для глобального поиска
 
   // ─── DOM ───
   var thead = document.getElementById("thead");
@@ -48,32 +54,6 @@
   var btnRefresh = document.getElementById("btn-refresh");
 
   // ─── Утилиты ───
-  function escapeHtml(s) {
-    if (s == null || s === undefined) return "";
-    var t = document.createElement("span");
-    t.textContent = s;
-    return t.innerHTML;
-  }
-
-  // Колонки с датами (для корректной сортировки)
-  var DATE_KEYS = {
-    "password_last_set": true,
-    "account_expires": true,
-    "mfa_created_at": true,
-    "mfa_last_login": true
-  };
-
-  /**
-   * Преобразует дату DD.MM.YYYY → YYYYMMDD для правильной сортировки.
-   * Если формат не распознан — возвращает исходную строку.
-   */
-  function dateSortKey(val) {
-    if (!val) return "";
-    var m = val.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (m) return m[3] + m[2] + m[1]; // YYYYMMDD
-    return val;
-  }
-
   function rowClass(source) {
     if (!source) return "";
     if (source.indexOf("AD") === 0) return "source-ad";
@@ -82,15 +62,29 @@
     return "";
   }
 
-  // ─── Генерация заголовков ───
+  /**
+   * Строит кэшированную строку для глобального поиска (один раз на запись).
+   */
+  function getSearchString(row) {
+    var cached = searchCache.get(row);
+    if (cached !== undefined) return cached;
+    var parts = [];
+    for (var i = 0; i < COLUMNS.length; i++) {
+      var v = row[COLUMNS[i].key];
+      if (v != null && v !== "") parts.push(String(v));
+    }
+    var str = parts.join(" ").toLowerCase();
+    searchCache.set(row, str);
+    return str;
+  }
+
+  // ─── Заголовки ───
   function buildThead() {
     thead.innerHTML = "";
 
     // Ряд 1: метки + сортировка
     var trLabels = document.createElement("tr");
     trLabels.className = "thead-labels";
-
-    // Колонка "#"
     var thNum = document.createElement("th");
     thNum.className = "col-num";
     thNum.textContent = "#";
@@ -100,7 +94,7 @@
       var th = document.createElement("th");
       th.className = "sortable";
       th.dataset.key = col.key;
-      th.innerHTML = escapeHtml(col.label) + " <span class=\"sort-icon\"></span>";
+      th.innerHTML = esc(col.label) + " <span class=\"sort-icon\"></span>";
       th.onclick = function () { onSort(col.key); };
       trLabels.appendChild(th);
     });
@@ -109,8 +103,6 @@
     // Ряд 2: фильтры
     var trFilters = document.createElement("tr");
     trFilters.className = "thead-filters";
-
-    // Пустая ячейка под "#"
     var thNumF = document.createElement("th");
     thNumF.className = "col-num";
     trFilters.appendChild(thNumF);
@@ -135,9 +127,7 @@
   }
 
   /**
-   * Возвращает строки, прошедшие глобальный поиск и все колоночные фильтры,
-   * КРОМЕ фильтра по колонке excludeKey (чтобы в её dropdown показать
-   * все доступные варианты с учётом остальных фильтров).
+   * Каскадные фильтры: строки, прошедшие все фильтры КРОМЕ excludeKey.
    */
   function rowsFilteredExcept(excludeKey) {
     var globalFilter = (filterInput ? filterInput.value : "").trim().toLowerCase();
@@ -145,7 +135,7 @@
 
     if (globalFilter) {
       rows = rows.filter(function (row) {
-        return JSON.stringify(row).toLowerCase().indexOf(globalFilter) !== -1;
+        return getSearchString(row).indexOf(globalFilter) !== -1;
       });
     }
 
@@ -168,7 +158,6 @@
       var key = sel.dataset.key;
       var prev = colFilters[key] || "";
 
-      // Варианты — только из строк, прошедших все ДРУГИЕ фильтры
       var available = rowsFilteredExcept(key);
       var vals = {};
       for (var j = 0; j < available.length; j++) {
@@ -181,27 +170,31 @@
         var bStub = b.indexOf("НЕТ") === 0 ? 0 : 1;
         if (aStub !== bStub) return aStub - bStub;
         if (isDate) {
-          var da = dateSortKey(a);
-          var db = dateSortKey(b);
-          if (da < db) return -1;
-          if (da > db) return 1;
+          var da = AppUtils.dateSortKey(a);
+          var db2 = AppUtils.dateSortKey(b);
+          if (da < db2) return -1;
+          if (da > db2) return 1;
           return 0;
         }
         return a.localeCompare(b, "ru");
       });
 
-      sel.innerHTML = "";
+      // DocumentFragment для батчевой вставки
+      var fragment = document.createDocumentFragment();
       var optAll = document.createElement("option");
       optAll.value = "";
       optAll.textContent = "\u2014 все (" + sorted.length + ")";
-      sel.appendChild(optAll);
+      fragment.appendChild(optAll);
 
       for (var k = 0; k < sorted.length; k++) {
         var opt = document.createElement("option");
         opt.value = sorted[k];
         opt.textContent = sorted[k];
-        sel.appendChild(opt);
+        fragment.appendChild(opt);
       }
+
+      sel.innerHTML = "";
+      sel.appendChild(fragment);
 
       sel.value = prev;
       if (sel.value !== prev) {
@@ -213,7 +206,6 @@
   }
 
   function updateFilterHighlight() {
-    // Подсветить заголовки столбцов с активным фильтром
     var labelThs = thead.querySelectorAll(".thead-labels th.sortable");
     for (var i = 0; i < labelThs.length; i++) {
       var key = labelThs[i].dataset.key;
@@ -230,11 +222,7 @@
     for (var i = 0; i < ths.length; i++) {
       var icon = ths[i].querySelector(".sort-icon");
       var key = ths[i].dataset.key;
-      if (key === sortCol) {
-        icon.textContent = sortDir === "asc" ? " \u25B2" : " \u25BC";
-      } else {
-        icon.textContent = "";
-      }
+      icon.textContent = key === sortCol ? (sortDir === "asc" ? " \u25B2" : " \u25BC") : "";
     }
   }
 
@@ -249,19 +237,17 @@
     applyFilters();
   }
 
-  // ─── Фильтрация + сортировка → filteredRows ───
+  // ─── Фильтрация + сортировка ───
   function applyFilters() {
     var globalFilter = (filterInput ? filterInput.value : "").trim().toLowerCase();
     var rows = cachedRows;
 
-    // 1) Глобальный поиск
     if (globalFilter) {
       rows = rows.filter(function (row) {
-        return JSON.stringify(row).toLowerCase().indexOf(globalFilter) !== -1;
+        return getSearchString(row).indexOf(globalFilter) !== -1;
       });
     }
 
-    // 2) Фильтры по столбцам
     COLUMNS.forEach(function (col) {
       var f = colFilters[col.key] || "";
       if (!f) return;
@@ -270,24 +256,8 @@
       });
     });
 
-    // 3) Сортировка
     if (sortCol) {
-      var dir = sortDir === "asc" ? 1 : -1;
-      var isDate = !!DATE_KEYS[sortCol];
-      rows = rows.slice().sort(function (a, b) {
-        var va = a[sortCol] == null ? "" : String(a[sortCol]);
-        var vb = b[sortCol] == null ? "" : String(b[sortCol]);
-        if (isDate) {
-          va = dateSortKey(va);
-          vb = dateSortKey(vb);
-        } else {
-          va = va.toLowerCase();
-          vb = vb.toLowerCase();
-        }
-        if (va < vb) return -1 * dir;
-        if (va > vb) return  1 * dir;
-        return 0;
-      });
+      rows = TableUtils.sortRows(rows, sortCol, sortDir, DATE_KEYS);
     }
 
     filteredRows = rows;
@@ -304,20 +274,17 @@
     if (renderedCount >= end) return;
 
     var fragment = document.createDocumentFragment();
-
     for (var i = renderedCount; i < end; i++) {
       var row = filteredRows[i];
       var tr = document.createElement("tr");
       var inactive = row.uz_active === "Нет";
       tr.className = rowClass(row.source) + (inactive ? " uz-inactive" : "");
 
-      // Ячейка "#"
       var tdNum = document.createElement("td");
       tdNum.className = "col-num";
       tdNum.textContent = i + 1;
       tr.appendChild(tdNum);
 
-      // Ячейки данных
       for (var j = 0; j < COLUMNS.length; j++) {
         var col = COLUMNS[j];
         var td = document.createElement("td");
@@ -325,7 +292,6 @@
         td.textContent = row[col.key] == null ? "" : row[col.key];
         tr.appendChild(td);
       }
-
       fragment.appendChild(tr);
     }
 
@@ -344,15 +310,19 @@
     tableFooter.textContent = parts.join(" · ");
   }
 
-  // ─── Подгрузка при прокрутке ───
+  // ─── Throttled scroll для ленивой подгрузки ───
   if (tableContainer) {
+    var scrollTimeout = null;
     tableContainer.addEventListener("scroll", function () {
-      if (renderedCount >= filteredRows.length) return;
-      var el = tableContainer;
-      // Когда до конца осталось менее 300px — подгружаем
-      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 300) {
-        renderChunk();
-      }
+      if (scrollTimeout) return;
+      scrollTimeout = setTimeout(function () {
+        scrollTimeout = null;
+        if (renderedCount >= filteredRows.length) return;
+        var el = tableContainer;
+        if (el.scrollTop + el.clientHeight >= el.scrollHeight - 300) {
+          renderChunk();
+        }
+      }, 50);
     });
   }
 
@@ -363,10 +333,11 @@
       var r = await fetch(API + "/api/consolidated");
       var data = await r.json();
       cachedRows = data.rows || [];
+      searchCache = new Map();  // Сброс кэша поиска
       updateFilterOptions();
       applyFilters();
     } catch (e) {
-      tbody.innerHTML = "<tr><td colspan=\"" + TOTAL_COLS + "\">Ошибка загрузки: " + escapeHtml(e.message) + "</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"" + TOTAL_COLS + "\">Ошибка загрузки: " + esc(e.message) + "</td></tr>";
       tableFooter.textContent = "";
     }
   }
@@ -376,36 +347,26 @@
     filterInput.addEventListener("input", function () { applyFilters(); });
   }
 
-  // ─── Экспорт XLSX (с учётом фильтров) ───
+  // ─── Сброс фильтров ───
+  var btnResetFilters = document.getElementById("btn-reset-filters");
+  if (btnResetFilters) {
+    btnResetFilters.onclick = function () {
+      colFilters = {};
+      sortCol = null;
+      sortDir = "asc";
+      if (filterInput) filterInput.value = "";
+      updateSortIcons();
+      updateFilterOptions();
+      applyFilters();
+    };
+  }
+
+  // ─── Экспорт XLSX ───
   var btnExport = document.getElementById("btn-export");
   if (btnExport) {
-    btnExport.onclick = async function () {
-      var dataToExport = filteredRows.length ? filteredRows : cachedRows;
-      if (!dataToExport.length) { alert("Нет данных для выгрузки"); return; }
-      try {
-        var r = await fetch(API + "/api/export/table", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            columns: COLUMNS.map(function (c) { return { key: c.key, label: c.label }; }),
-            rows: dataToExport,
-            filename: "Svodka_AD_MFA_People.xlsx",
-            sheet: "Сводная"
-          })
-        });
-        if (!r.ok) { alert("Ошибка экспорта"); return; }
-        var blob = await r.blob();
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = "Svodka_AD_MFA_People.xlsx";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        alert("Ошибка: " + e.message);
-      }
+    btnExport.onclick = function () {
+      var data = filteredRows.length ? filteredRows : cachedRows;
+      AppUtils.exportToXLSX(COLUMNS, data, "Svodka_AD_MFA_People.xlsx", "Сводная");
     };
   }
 

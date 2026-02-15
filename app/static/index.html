@@ -3,26 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Сводная — UsersBI</title>
+  <title>Сводная — Девелоника Пользователи</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='80' font-size='80'>📊</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <div class="layout">
-
-    <!-- Навигация -->
-    <nav class="main-nav">
-      <div class="main-nav-inner">
-        <span class="main-nav-brand">UsersBI</span>
-        <div class="main-nav-links">
-          <a href="/upload" class="main-nav-item">Загрузка</a>
-          <a href="/" class="main-nav-item active">Сводная</a>
-          <a href="/users" class="main-nav-item">Пользователи</a>
-          <a href="/groups" class="main-nav-item">Группы AD</a>
-          <a href="/structure" class="main-nav-item">Структура OU</a>
-        </div>
-      </div>
-    </nav>
 
     <!-- Тулбар таблицы -->
     <div class="table-toolbar">
@@ -32,6 +18,7 @@
         <label class="filter-wrap">
           <input type="text" id="filter" placeholder="Поиск…">
         </label>
+        <button type="button" class="btn btn-secondary" id="btn-reset-filters">Сбросить фильтры</button>
         <button type="button" class="btn btn-secondary" id="btn-refresh">Обновить</button>
         <button type="button" class="btn btn-export" id="btn-export">Выгрузить XLSX</button>
       </div>
@@ -46,6 +33,9 @@
     </div>
 
   </div>
+  <script src="/static/utils.js"></script>
+  <script src="/static/table-utils.js"></script>
+  <script src="/static/nav.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
 (function () {
-  var API = "";
+  var API = AppUtils.API;
+  var esc = AppUtils.escapeHtml;
 
-  // ─── Колонки таблицы участников ───
   var COLUMNS = [
     { key: "login",        label: "Логин" },
     { key: "display_name", label: "ФИО" },
@@ -14,15 +14,7 @@
     { key: "staff_uuid",   label: "StaffUUID" }
   ];
 
-  // Колонки с датами
   var DATE_KEYS = { "password_last_set": true };
-
-  function dateSortKey(val) {
-    if (!val) return "";
-    var m = val.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (m) return m[3] + m[2] + m[1];
-    return val;
-  }
 
   // ─── Состояние ───
   var treeData = [];
@@ -40,44 +32,9 @@
   var ouCount = document.getElementById("ou-count");
   var thead = document.getElementById("members-thead");
   var tbody = document.getElementById("members-tbody");
+  var btnExport = document.getElementById("btn-export");
 
-  // ─── Утилиты ───
-  function escapeHtml(s) {
-    if (s == null || s === undefined) return "";
-    var t = document.createElement("span");
-    t.textContent = s;
-    return t.innerHTML;
-  }
-
-  // ─── Заголовок таблицы ───
-  function buildThead() {
-    thead.innerHTML = "";
-    var tr = document.createElement("tr");
-    COLUMNS.forEach(function (col) {
-      var th = document.createElement("th");
-      th.className = "sortable";
-      th.dataset.key = col.key;
-      th.innerHTML = escapeHtml(col.label) + " <span class=\"sort-icon\"></span>";
-      th.onclick = function () { onSort(col.key); };
-      tr.appendChild(th);
-    });
-    thead.appendChild(tr);
-    updateSortIcons();
-  }
-
-  function updateSortIcons() {
-    var ths = thead.querySelectorAll("th");
-    for (var i = 0; i < ths.length; i++) {
-      var icon = ths[i].querySelector(".sort-icon");
-      var key = ths[i].dataset.key;
-      if (key === sortCol) {
-        icon.textContent = sortDir === "asc" ? " \u25B2" : " \u25BC";
-      } else {
-        icon.textContent = "";
-      }
-    }
-  }
-
+  // ─── Сортировка ───
   function onSort(key) {
     if (sortCol === key) {
       sortDir = sortDir === "asc" ? "desc" : "asc";
@@ -85,73 +42,39 @@
       sortCol = key;
       sortDir = "asc";
     }
-    updateSortIcons();
+    TableUtils.updateSortIcons(thead, sortCol, sortDir);
     renderMembers();
   }
 
-  // ─── Рендер таблицы ───
   function renderMembers() {
-    var rows = cachedMembers.slice();
-    if (sortCol) {
-      var dir = sortDir === "asc" ? 1 : -1;
-      var isDate = !!DATE_KEYS[sortCol];
-      rows.sort(function (a, b) {
-        var va = a[sortCol] == null ? "" : String(a[sortCol]);
-        var vb = b[sortCol] == null ? "" : String(b[sortCol]);
-        if (isDate) {
-          va = dateSortKey(va);
-          vb = dateSortKey(vb);
-        } else {
-          va = va.toLowerCase();
-          vb = vb.toLowerCase();
-        }
-        if (va < vb) return -1 * dir;
-        if (va > vb) return 1 * dir;
-        return 0;
-      });
-    }
-
-    if (rows.length === 0) {
-      tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Нет пользователей в этом OU</td></tr>";
-      return;
-    }
-
-    tbody.innerHTML = rows.map(function (row) {
-      var inactive = row.enabled === "Нет";
-      var cls = inactive ? " class=\"uz-inactive\"" : "";
-      var cells = COLUMNS.map(function (col) {
-        return "<td>" + escapeHtml(row[col.key]) + "</td>";
-      }).join("");
-      return "<tr" + cls + ">" + cells + "</tr>";
-    }).join("");
+    var rows = TableUtils.sortRows(cachedMembers, sortCol, sortDir, DATE_KEYS);
+    TableUtils.renderMembersTable(tbody, rows, COLUMNS, "Нет пользователей в этом OU");
   }
 
-  // ─── Хлебные крошки ───
+  // ─── Хлебные крошки (с event delegation) ───
   function renderBreadcrumb(path, domain) {
     if (!path) { ouBreadcrumb.innerHTML = ""; return; }
     var parts = path.split("/");
-    var html = parts.map(function (p, i) {
+    ouBreadcrumb.innerHTML = parts.map(function (p, i) {
       var sub = parts.slice(0, i + 1).join("/");
-      return "<span class=\"ou-crumb\" data-path=\"" + escapeHtml(sub) + "\" data-domain=\"" + escapeHtml(domain) + "\">"
-        + escapeHtml(p) + "</span>";
+      return "<span class=\"ou-crumb\" data-path=\"" + esc(sub) + "\" data-domain=\"" + esc(domain) + "\">"
+        + esc(p) + "</span>";
     }).join(" <span class=\"ou-crumb-sep\">›</span> ");
-    ouBreadcrumb.innerHTML = html;
-
-    // Клики по крошкам
-    var crumbs = ouBreadcrumb.querySelectorAll(".ou-crumb");
-    for (var i = 0; i < crumbs.length; i++) {
-      crumbs[i].onclick = function () {
-        loadMembers(this.dataset.path, this.dataset.domain);
-      };
-    }
   }
+
+  // Event delegation для хлебных крошек
+  ouBreadcrumb.addEventListener("click", function (e) {
+    var crumb = e.target.closest(".ou-crumb");
+    if (crumb) {
+      loadMembers(crumb.dataset.path, crumb.dataset.domain);
+    }
+  });
 
   // ─── Загрузка участников OU ───
   async function loadMembers(path, domain) {
     selectedPath = path;
     selectedDomain = domain;
-    var ouName = path.split("/").pop();
-    ouTitle.textContent = ouName;
+    ouTitle.textContent = path.split("/").pop();
     ouCount.textContent = "загрузка…";
     renderBreadcrumb(path, domain);
     tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Загрузка…</td></tr>";
@@ -163,11 +86,11 @@
       ouCount.textContent = data.count + " уч. (" + data.city + ")";
       sortCol = null;
       sortDir = "asc";
-      updateSortIcons();
+      TableUtils.updateSortIcons(thead, sortCol, sortDir);
       renderMembers();
       if (btnExport) btnExport.style.display = cachedMembers.length ? "" : "none";
     } catch (e) {
-      tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Ошибка: " + escapeHtml(e.message) + "</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Ошибка: " + esc(e.message) + "</td></tr>";
       ouCount.textContent = "";
     }
 
@@ -192,19 +115,15 @@
     container.className = "tree-ou-children";
 
     children.forEach(function (node) {
-      // Фильтрация: показать узел, если он или его потомки содержат совпадение
       var nameMatch = !filter || node.name.toLowerCase().indexOf(filter) !== -1;
       var childrenMatch = hasFilterMatch(node.children, filter);
       if (filter && !nameMatch && !childrenMatch) return;
 
       var nodePath = parentPath ? parentPath + "/" + node.name : node.name;
-
       var nodeEl = document.createElement("div");
       nodeEl.className = "tree-ou-node";
-
       var hasChildren = node.children && node.children.length > 0;
 
-      // Строка узла
       var row = document.createElement("div");
       row.className = "tree-ou-row";
 
@@ -223,13 +142,8 @@
       label.className = "tree-ou-item";
       label.dataset.path = nodePath;
       label.dataset.domain = domainKey;
-      label.innerHTML = escapeHtml(node.name)
+      label.innerHTML = esc(node.name)
         + " <span class=\"tree-group-count\">(" + node.count + "/" + node.total + ")</span>";
-
-      label.onclick = function (e) {
-        e.stopPropagation();
-        loadMembers(nodePath, domainKey);
-      };
 
       if (nodePath === selectedPath && domainKey === selectedDomain) {
         label.classList.add("active");
@@ -238,25 +152,16 @@
       row.appendChild(label);
       nodeEl.appendChild(row);
 
-      // Вложенные дочерние
       if (hasChildren) {
         var childContainer = buildTreeNode(node.children, nodePath, domainKey, filter);
-        childContainer.style.display = "none"; // свёрнуто по умолчанию
+        childContainer.style.display = "none";
 
-        // Если есть совпадение фильтра в потомках — развернуть
         if (filter && childrenMatch) {
           childContainer.style.display = "";
           if (row.querySelector(".tree-arrow")) {
             row.querySelector(".tree-arrow").innerHTML = "&#9660;";
           }
         }
-
-        row.querySelector(".tree-arrow").onclick = function (e) {
-          e.stopPropagation();
-          var isHidden = childContainer.style.display === "none";
-          childContainer.style.display = isHidden ? "" : "none";
-          this.innerHTML = isHidden ? "&#9660;" : "&#9654;";
-        };
 
         nodeEl.appendChild(childContainer);
       }
@@ -276,7 +181,30 @@
     return false;
   }
 
-  // ─── Рендер всего дерева ───
+  // Event delegation для дерева OU
+  sidebarTree.addEventListener("click", function (e) {
+    // Клик по стрелке — раскрытие/свёртывание
+    var arrow = e.target.closest(".tree-arrow");
+    if (arrow) {
+      e.stopPropagation();
+      var row = arrow.closest(".tree-ou-row");
+      if (!row) return;
+      var nodeEl = row.parentElement;
+      var childContainer = nodeEl.querySelector(".tree-ou-children");
+      if (childContainer) {
+        var isHidden = childContainer.style.display === "none";
+        childContainer.style.display = isHidden ? "" : "none";
+        arrow.innerHTML = isHidden ? "&#9660;" : "&#9654;";
+      }
+      return;
+    }
+    // Клик по OU-элементу
+    var ouItem = e.target.closest(".tree-ou-item");
+    if (ouItem && ouItem.dataset.path && ouItem.dataset.domain) {
+      loadMembers(ouItem.dataset.path, ouItem.dataset.domain);
+    }
+  });
+
   function renderTree(filter) {
     filter = (filter || "").trim().toLowerCase();
     sidebarTree.innerHTML = "";
@@ -285,6 +213,8 @@
       sidebarTree.innerHTML = "<p class=\"muted-text\">Нет данных AD</p>";
       return;
     }
+
+    var fragment = document.createDocumentFragment();
 
     treeData.forEach(function (domain) {
       if (!domain.tree || !domain.tree.length) return;
@@ -295,25 +225,26 @@
       var header = document.createElement("div");
       header.className = "tree-domain-header";
       header.innerHTML = "<span class=\"tree-arrow\">&#9660;</span> "
-        + escapeHtml(domain.city)
+        + esc(domain.city)
         + " <span class=\"tree-badge\">" + domain.total_users + " уч.</span>";
 
       var content = buildTreeNode(domain.tree, "", domain.key, filter);
 
       header.onclick = function () {
         domainEl.classList.toggle("collapsed");
-        var arrow = header.querySelector(".tree-arrow");
-        arrow.innerHTML = domainEl.classList.contains("collapsed") ? "&#9654;" : "&#9660;";
+        var a = header.querySelector(".tree-arrow");
+        a.innerHTML = domainEl.classList.contains("collapsed") ? "&#9654;" : "&#9660;";
         content.style.display = domainEl.classList.contains("collapsed") ? "none" : "";
       };
 
       domainEl.appendChild(header);
       domainEl.appendChild(content);
-      sidebarTree.appendChild(domainEl);
+      fragment.appendChild(domainEl);
     });
+
+    sidebarTree.appendChild(fragment);
   }
 
-  // ─── Загрузка дерева ───
   async function loadTree() {
     try {
       var r = await fetch(API + "/api/structure/tree");
@@ -321,52 +252,25 @@
       treeData = data.domains || [];
       renderTree();
     } catch (e) {
-      sidebarTree.innerHTML = "<p class=\"muted-text\">Ошибка: " + escapeHtml(e.message) + "</p>";
+      sidebarTree.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
     }
   }
 
-  // ─── Поиск ───
   ouSearch.addEventListener("input", function () {
     renderTree(ouSearch.value);
   });
 
   // ─── Экспорт XLSX ───
-  var btnExport = document.getElementById("btn-export");
   if (btnExport) {
-    btnExport.onclick = async function () {
-      if (!cachedMembers.length) { alert("Нет данных для выгрузки"); return; }
+    btnExport.onclick = function () {
       var ouName = (selectedPath || "ou").split("/").pop().replace(/[\\/:*?"<>|]/g, "_");
-      try {
-        var r = await fetch(API + "/api/export/table", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            columns: COLUMNS.map(function (c) { return { key: c.key, label: c.label }; }),
-            rows: cachedMembers,
-            filename: "OU_" + ouName + ".xlsx",
-            sheet: ouName.substring(0, 31)
-          })
-        });
-        if (!r.ok) { alert("Ошибка экспорта"); return; }
-        var blob = await r.blob();
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = "OU_" + ouName + ".xlsx";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        alert("Ошибка: " + e.message);
-      }
+      AppUtils.exportToXLSX(COLUMNS, cachedMembers, "OU_" + ouName + ".xlsx", ouName);
     };
   }
 
   // ─── Инициализация ───
-  buildThead();
+  TableUtils.buildSimpleThead(thead, COLUMNS, onSort);
   loadTree().then(function () {
-    // Автооткрытие из URL: /structure?path=PATH&domain=KEY
     var params = new URLSearchParams(window.location.search);
     var pPath = params.get("path");
     var pDomain = params.get("domain");

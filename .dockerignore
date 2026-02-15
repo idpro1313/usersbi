@@ -13,3 +13,13 @@ __pycache__
 docker-compose*.yml
 .dockerignore
 install.sh
+.idea/
+.vscode/
+.cursor/
+*.log
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+.pytest_cache/
+.mypy_cache/

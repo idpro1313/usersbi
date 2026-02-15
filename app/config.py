@@ -16,6 +16,20 @@ AD_DOMAINS = {
     "moscow":   "Москва",
 }
 
+# Короткие метки AD-доменов для сводной таблицы
+AD_SOURCE_LABELS = {
+    "izhevsk":  "AD izh",
+    "kostroma": "AD kst",
+    "moscow":   "AD msk",
+}
+
+# Полные метки AD-доменов для карточки пользователя
+AD_LABELS = {
+    "izhevsk":  "AD Ижевск",
+    "kostroma": "AD Кострома",
+    "moscow":   "AD Москва",
+}
+
 # DN-суффиксы для валидации принадлежности УЗ к домену
 AD_DOMAIN_DN = {
     "izhevsk":  "DC=local,DC=htc-cs,DC=com",

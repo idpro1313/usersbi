@@ -2,10 +2,16 @@ services:
   web:
     build: .
     container_name: usersbi
+    restart: unless-stopped
     ports:
       - "3456:8000"
     volumes:
-      # БД и настройки приложения — в локальную папку проекта (относительно каталога, откуда запускается compose)
       - ./data:/app/data
     environment:
       - DATABASE_URL=sqlite:////app/data/app.db
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/stats')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

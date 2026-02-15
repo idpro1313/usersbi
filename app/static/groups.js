@@ -1,7 +1,7 @@
 (function () {
-  var API = "";
+  var API = AppUtils.API;
+  var esc = AppUtils.escapeHtml;
 
-  // ─── Колонки таблицы участников ───
   var COLUMNS = [
     { key: "login",        label: "Логин" },
     { key: "display_name", label: "ФИО" },
@@ -14,15 +14,7 @@
     { key: "staff_uuid",   label: "StaffUUID" }
   ];
 
-  // Колонки с датами
   var DATE_KEYS = { "password_last_set": true };
-
-  function dateSortKey(val) {
-    if (!val) return "";
-    var m = val.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-    if (m) return m[3] + m[2] + m[1];
-    return val;
-  }
 
   // ─── Состояние ───
   var treeData = [];
@@ -39,44 +31,9 @@
   var groupsCount = document.getElementById("groups-count");
   var thead = document.getElementById("members-thead");
   var tbody = document.getElementById("members-tbody");
+  var btnExport = document.getElementById("btn-export");
 
-  // ─── Утилиты ───
-  function escapeHtml(s) {
-    if (s == null || s === undefined) return "";
-    var t = document.createElement("span");
-    t.textContent = s;
-    return t.innerHTML;
-  }
-
-  // ─── Построение заголовка таблицы ───
-  function buildThead() {
-    thead.innerHTML = "";
-    var tr = document.createElement("tr");
-    COLUMNS.forEach(function (col) {
-      var th = document.createElement("th");
-      th.className = "sortable";
-      th.dataset.key = col.key;
-      th.innerHTML = escapeHtml(col.label) + " <span class=\"sort-icon\"></span>";
-      th.onclick = function () { onSort(col.key); };
-      tr.appendChild(th);
-    });
-    thead.appendChild(tr);
-    updateSortIcons();
-  }
-
-  function updateSortIcons() {
-    var ths = thead.querySelectorAll("th");
-    for (var i = 0; i < ths.length; i++) {
-      var icon = ths[i].querySelector(".sort-icon");
-      var key = ths[i].dataset.key;
-      if (key === sortCol) {
-        icon.textContent = sortDir === "asc" ? " \u25B2" : " \u25BC";
-      } else {
-        icon.textContent = "";
-      }
-    }
-  }
-
+  // ─── Сортировка ───
   function onSort(key) {
     if (sortCol === key) {
       sortDir = sortDir === "asc" ? "desc" : "asc";
@@ -84,46 +41,13 @@
       sortCol = key;
       sortDir = "asc";
     }
-    updateSortIcons();
+    TableUtils.updateSortIcons(thead, sortCol, sortDir);
     renderMembers();
   }
 
-  // ─── Рендер таблицы участников ───
   function renderMembers() {
-    var rows = cachedMembers.slice();
-
-    if (sortCol) {
-      var dir = sortDir === "asc" ? 1 : -1;
-      var isDate = !!DATE_KEYS[sortCol];
-      rows.sort(function (a, b) {
-        var va = a[sortCol] == null ? "" : String(a[sortCol]);
-        var vb = b[sortCol] == null ? "" : String(b[sortCol]);
-        if (isDate) {
-          va = dateSortKey(va);
-          vb = dateSortKey(vb);
-        } else {
-          va = va.toLowerCase();
-          vb = vb.toLowerCase();
-        }
-        if (va < vb) return -1 * dir;
-        if (va > vb) return 1 * dir;
-        return 0;
-      });
-    }
-
-    if (rows.length === 0) {
-      tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Нет участников</td></tr>";
-      return;
-    }
-
-    tbody.innerHTML = rows.map(function (row) {
-      var inactive = row.enabled === "Нет";
-      var cls = inactive ? " class=\"uz-inactive\"" : "";
-      var cells = COLUMNS.map(function (col) {
-        return "<td>" + escapeHtml(row[col.key]) + "</td>";
-      }).join("");
-      return "<tr" + cls + ">" + cells + "</tr>";
-    }).join("");
+    var rows = TableUtils.sortRows(cachedMembers, sortCol, sortDir, DATE_KEYS);
+    TableUtils.renderMembersTable(tbody, rows, COLUMNS, "Нет участников");
   }
 
   // ─── Загрузка участников группы ───
@@ -141,15 +65,14 @@
       groupsCount.textContent = data.count + " уч. (" + data.city + ")";
       sortCol = null;
       sortDir = "asc";
-      updateSortIcons();
+      TableUtils.updateSortIcons(thead, sortCol, sortDir);
       renderMembers();
       if (btnExport) btnExport.style.display = cachedMembers.length ? "" : "none";
     } catch (e) {
-      tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Ошибка: " + escapeHtml(e.message) + "</td></tr>";
+      tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Ошибка: " + esc(e.message) + "</td></tr>";
       groupsCount.textContent = "";
     }
 
-    // Подсветить выбранную группу в дереве
     highlightSelected(group, domain);
   }
 
@@ -165,7 +88,7 @@
     }
   }
 
-  // ─── Построение дерева ───
+  // ─── Построение дерева (с event delegation) ───
   function renderTree(filter) {
     filter = (filter || "").trim().toLowerCase();
     sidebarTree.innerHTML = "";
@@ -174,6 +97,8 @@
       sidebarTree.innerHTML = "<p class=\"muted-text\">Нет данных AD</p>";
       return;
     }
+
+    var fragment = document.createDocumentFragment();
 
     treeData.forEach(function (domain) {
       var groups = domain.groups;
@@ -189,7 +114,7 @@
       var header = document.createElement("div");
       header.className = "tree-domain-header";
       header.innerHTML = "<span class=\"tree-arrow\">&#9660;</span> "
-        + escapeHtml(domain.city)
+        + esc(domain.city)
         + " <span class=\"tree-badge\">" + groups.length + " гр. / " + domain.total_users + " уч.</span>";
       header.onclick = function () {
         domainEl.classList.toggle("collapsed");
@@ -206,11 +131,7 @@
         item.className = "tree-group";
         item.dataset.group = g.name;
         item.dataset.domain = domain.key;
-        item.innerHTML = escapeHtml(g.name) + " <span class=\"tree-group-count\">(" + g.count + ")</span>";
-        item.onclick = function () {
-          loadMembers(g.name, domain.key);
-        };
-        // Восстановить подсветку
+        item.innerHTML = esc(g.name) + " <span class=\"tree-group-count\">(" + g.count + ")</span>";
         if (g.name === selectedGroup && domain.key === selectedDomain) {
           item.classList.add("active");
         }
@@ -218,9 +139,19 @@
       });
 
       domainEl.appendChild(list);
-      sidebarTree.appendChild(domainEl);
+      fragment.appendChild(domainEl);
     });
+
+    sidebarTree.appendChild(fragment);
   }
+
+  // Event delegation для клика по группам
+  sidebarTree.addEventListener("click", function (e) {
+    var groupEl = e.target.closest(".tree-group");
+    if (groupEl && groupEl.dataset.group && groupEl.dataset.domain) {
+      loadMembers(groupEl.dataset.group, groupEl.dataset.domain);
+    }
+  });
 
   // ─── Загрузка дерева ───
   async function loadTree() {
@@ -230,52 +161,25 @@
       treeData = data.domains || [];
       renderTree();
     } catch (e) {
-      sidebarTree.innerHTML = "<p class=\"muted-text\">Ошибка: " + escapeHtml(e.message) + "</p>";
+      sidebarTree.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
     }
   }
 
-  // ─── Поиск по группам ───
   groupSearch.addEventListener("input", function () {
     renderTree(groupSearch.value);
   });
 
   // ─── Экспорт XLSX ───
-  var btnExport = document.getElementById("btn-export");
   if (btnExport) {
-    btnExport.onclick = async function () {
-      if (!cachedMembers.length) { alert("Нет данных для выгрузки"); return; }
+    btnExport.onclick = function () {
       var safeName = (selectedGroup || "group").replace(/[\\/:*?"<>|]/g, "_");
-      try {
-        var r = await fetch(API + "/api/export/table", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            columns: COLUMNS.map(function (c) { return { key: c.key, label: c.label }; }),
-            rows: cachedMembers,
-            filename: "Group_" + safeName + ".xlsx",
-            sheet: safeName.substring(0, 31)
-          })
-        });
-        if (!r.ok) { alert("Ошибка экспорта"); return; }
-        var blob = await r.blob();
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement("a");
-        a.href = url;
-        a.download = "Group_" + safeName + ".xlsx";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } catch (e) {
-        alert("Ошибка: " + e.message);
-      }
+      AppUtils.exportToXLSX(COLUMNS, cachedMembers, "Group_" + safeName + ".xlsx", safeName);
     };
   }
 
   // ─── Инициализация ───
-  buildThead();
+  TableUtils.buildSimpleThead(thead, COLUMNS, onSort);
   loadTree().then(function () {
-    // Автооткрытие из URL: /groups?group=NAME&domain=KEY
     var params = new URLSearchParams(window.location.search);
     var pGroup = params.get("group");
     var pDomain = params.get("domain");
