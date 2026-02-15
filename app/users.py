@@ -187,6 +187,7 @@ def user_card(
         if login.lower() not in [l.lower() for l in logins]:
             logins.append(login.lower())
         ad_cards.append({
+            "ad_source": r.ad_source or "",
             "domain": _AD_LABELS.get(r.ad_source, r.ad_source or ""),
             "login": login,
             "display_name": _norm(r.display_name),

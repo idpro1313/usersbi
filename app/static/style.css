@@ -820,6 +820,16 @@ html, body {
 
 .ucard-val-long {
   white-space: normal;
-  word-break: break-all;
+  word-break: break-word;
   max-width: 600px;
+}
+
+.ucard-link {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.ucard-link:hover {
+  text-decoration: underline;
 }

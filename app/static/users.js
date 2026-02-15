@@ -177,8 +177,8 @@
           ["Расположение", a.location],
           ["Руководитель", a.manager],
           ["Таб. номер", a.employee_number],
-          ["DN", a.distinguished_name],
-          ["Группы", a.groups],
+          ["OU", { html: renderOuLink(a.distinguished_name, a.ad_source) }],
+          ["Группы", { html: renderGroupLinks(a.groups, a.ad_source) }],
           ["Инфо", a.info],
           ["StaffUUID", a.staff_uuid],
         ]);
@@ -219,15 +219,50 @@
     cardWrap.innerHTML = html;
   }
 
+  // ─── Ссылки на группы ───
+  function renderGroupLinks(groupsStr, adSource) {
+    if (!groupsStr) return "";
+    var groups = groupsStr.split(";").map(function (g) { return g.trim(); }).filter(Boolean);
+    if (!groups.length) return "";
+    return groups.map(function (g) {
+      var href = "/groups?domain=" + encodeURIComponent(adSource) + "&group=" + encodeURIComponent(g);
+      return "<a class=\"ucard-link\" href=\"" + href + "\">" + esc(g) + "</a>";
+    }).join("; ");
+  }
+
+  // ─── Ссылка на OU ───
+  function renderOuLink(dn, adSource) {
+    if (!dn) return "";
+    // Извлекаем OU= из DN (от листа к корню), переворачиваем
+    var ous = [];
+    var re = /OU=([^,]+)/gi;
+    var match;
+    while ((match = re.exec(dn)) !== null) {
+      ous.push(match[1]);
+    }
+    if (!ous.length) return esc(dn);
+    ous.reverse(); // от корня к листу
+    var path = ous.join("/");
+    var href = "/structure?domain=" + encodeURIComponent(adSource) + "&path=" + encodeURIComponent(path);
+    return "<a class=\"ucard-link\" href=\"" + href + "\">" + esc(ous.join(" › ")) + "</a>";
+  }
+
   function renderFieldsTable(pairs) {
     var rows = "";
     for (var i = 0; i < pairs.length; i++) {
       var label = pairs[i][0];
-      var value = pairs[i][1] || "";
+      var value = pairs[i][1];
       if (!value) continue;
-      // Длинные значения (группы, DN) — разрешаем перенос
-      var valClass = value.length > 80 ? " class=\"ucard-val-long\"" : "";
-      rows += "<tr><td class=\"ucard-label\">" + esc(label) + "</td><td" + valClass + ">" + esc(value) + "</td></tr>";
+      // Поддержка HTML-значений: { html: "..." }
+      var isHtml = value && typeof value === "object" && value.html !== undefined;
+      var rawHtml = isHtml ? value.html : "";
+      var textVal = isHtml ? "" : (value || "");
+      if (!rawHtml && !textVal) continue;
+      var valClass = "";
+      if (!isHtml && textVal.length > 80) valClass = " class=\"ucard-val-long\"";
+      if (isHtml) valClass = " class=\"ucard-val-long\"";
+      var cellContent = isHtml ? rawHtml : esc(textVal);
+      rows += "<tr><td class=\"ucard-label\">" + esc(label) + "</td><td" + valClass + ">" + cellContent + "</td></tr>";
     }
     if (!rows) return "<p class=\"muted-text\">Нет данных</p>";
     return "<table class=\"ucard-fields\">" + rows + "</table>";

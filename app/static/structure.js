@@ -365,5 +365,13 @@
 
   // ─── Инициализация ───
   buildThead();
-  loadTree();
+  loadTree().then(function () {
+    // Автооткрытие из URL: /structure?path=PATH&domain=KEY
+    var params = new URLSearchParams(window.location.search);
+    var pPath = params.get("path");
+    var pDomain = params.get("domain");
+    if (pPath && pDomain) {
+      loadMembers(pPath, pDomain);
+    }
+  });
 })();

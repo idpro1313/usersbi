@@ -274,5 +274,13 @@
 
   // ─── Инициализация ───
   buildThead();
-  loadTree();
+  loadTree().then(function () {
+    // Автооткрытие из URL: /groups?group=NAME&domain=KEY
+    var params = new URLSearchParams(window.location.search);
+    var pGroup = params.get("group");
+    var pDomain = params.get("domain");
+    if (pGroup && pDomain) {
+      loadMembers(pGroup, pDomain);
+    }
+  });
 })();
