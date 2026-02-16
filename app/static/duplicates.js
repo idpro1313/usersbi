@@ -21,7 +21,7 @@
     { key: "company",           label: "Компания" },
   ];
 
-  var DATE_KEYS = new Set(["password_last_set", "account_expires"]);
+  var DATE_KEYS = { "password_last_set": true, "account_expires": true };
 
   var allRows    = [];
   var sortCol    = "login";
@@ -68,17 +68,10 @@
     }
 
     var frag = document.createDocumentFragment();
-    var prevLogin = "";
 
     for (var i = 0; i < sorted.length; i++) {
       var row = sorted[i];
       var tr = document.createElement("tr");
-
-      // Чередуем цвет группы — по логину
-      var curLogin = (row.login || "").toLowerCase();
-      if (curLogin !== prevLogin) {
-        prevLogin = curLogin;
-      }
 
       // Подсветка неактивных УЗ
       if ((row.enabled || "").toLowerCase() === "нет") {

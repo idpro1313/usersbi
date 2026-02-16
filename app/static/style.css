@@ -489,7 +489,8 @@ html, body {
 .source-people td:nth-child(2) { color: var(--warn); }
 
 /* Неактивные УЗ — приглушённый цвет текста */
-.uz-inactive td {
+.uz-inactive td,
+.row-inactive td {
   color: var(--inactive-color);
   opacity: 0.7;
 }
