@@ -1056,6 +1056,119 @@ html, body {
   background: var(--hover-bg);
 }
 
+/* ─── Аналитика безопасности ─── */
+.sec-summary {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+.sec-card {
+  flex: 1;
+  min-width: 120px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  text-align: center;
+}
+.sec-card-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.sec-card-label {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+.sec-card-critical { border-color: #e74c3c; }
+.sec-card-critical .sec-card-value { color: #e74c3c; }
+.sec-card-high { border-color: #e67e22; }
+.sec-card-high .sec-card-value { color: #e67e22; }
+.sec-card-warn { border-color: #f39c12; }
+.sec-card-warn .sec-card-value { color: #f39c12; }
+.sec-card-ok { border-color: #27ae60; }
+.sec-card-ok .sec-card-value { color: #27ae60; }
+
+.sec-finding {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 0.6rem;
+  border-left: 4px solid var(--border);
+}
+.sec-finding.sec-sev-critical { border-left-color: #e74c3c; }
+.sec-finding.sec-sev-high     { border-left-color: #e67e22; }
+.sec-finding.sec-sev-medium   { border-left-color: #f39c12; }
+.sec-finding.sec-sev-info     { border-left-color: var(--accent); }
+.sec-finding.sec-finding-ok   { border-left-color: #27ae60; opacity: 0.7; }
+
+.sec-finding-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+.sec-finding-header:hover { background: var(--hover-bg); }
+.sec-finding-sev {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  color: #fff;
+  flex-shrink: 0;
+}
+.sec-sev-critical .sec-finding-sev { background: #e74c3c; }
+.sec-sev-high .sec-finding-sev     { background: #e67e22; }
+.sec-sev-medium .sec-finding-sev   { background: #f39c12; color: #333; }
+.sec-sev-info .sec-finding-sev     { background: var(--accent); }
+.sec-finding-ok .sec-finding-sev   { background: #27ae60; }
+
+.sec-finding-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex: 1;
+}
+.sec-finding-count {
+  font-size: 1rem;
+  font-weight: 700;
+  min-width: 2rem;
+  text-align: right;
+}
+.sec-finding-ok .sec-finding-count { color: #27ae60; }
+.sec-finding-arrow {
+  font-size: 0.85rem;
+  color: var(--muted);
+  width: 1rem;
+  text-align: center;
+}
+.sec-finding-desc {
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 0 0.75rem 0.4rem;
+  line-height: 1.35;
+}
+.sec-finding-body {
+  padding: 0 0.75rem 0.75rem;
+}
+.sec-table {
+  width: 100%;
+  font-size: 0.78rem;
+}
+.sec-table th,
+.sec-table td {
+  padding: 0.25rem 0.5rem;
+}
+
+.page-inner-wide {
+  max-width: 1200px;
+}
+
 /* ─── Секции внутри карточки AD ─── */
 .ucard-ad-section-label {
   margin: 0.6rem 0 0.2rem;

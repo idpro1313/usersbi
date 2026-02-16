@@ -8,6 +8,7 @@
     { href: "/structure", label: "Структура OU" },
     { href: "/org",        label: "Организация" },
     { href: "/duplicates", label: "Дубли" },
+    { href: "/security",   label: "Безопасность" },
   ];
 
   var path = window.location.pathname.replace(/\/+$/, "") || "/";
