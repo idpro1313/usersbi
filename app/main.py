@@ -18,6 +18,7 @@ from app.groups import router as groups_router
 from app.structure import router as structure_router
 from app.users import router as users_router
 from app.duplicates import router as duplicates_router
+from app.org import router as org_router
 
 
 # ─── Хелперы ────────────────────────────────────────────────
@@ -44,6 +45,7 @@ app.include_router(groups_router)
 app.include_router(structure_router)
 app.include_router(users_router)
 app.include_router(duplicates_router)
+app.include_router(org_router)
 
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
@@ -87,6 +89,11 @@ async def users_page():
 @app.get("/duplicates", response_class=HTMLResponse)
 async def duplicates_page():
     return _read_html("duplicates.html")
+
+
+@app.get("/org", response_class=HTMLResponse)
+async def org_page():
+    return _read_html("org.html")
 
 
 # ─── Загрузка файлов ────────────────────────────────────────

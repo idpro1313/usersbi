@@ -140,6 +140,54 @@ def _resolve_key(key: str, db: Session):
     return staff_uuid, logins, ad_recs
 
 
+def _resolve_managers(ad_cards: list[dict], db: Session):
+    """
+    Для каждой AD-карточки с полем manager (DN руководителя)
+    находит запись руководителя в БД и добавляет manager_key + manager_name.
+    """
+    # Собираем уникальные DN руководителей
+    mgr_dns = set()
+    for c in ad_cards:
+        mgr = c.get("manager", "")
+        if mgr:
+            mgr_dns.add(mgr.lower())
+
+    if not mgr_dns:
+        for c in ad_cards:
+            c["manager_key"] = ""
+            c["manager_name"] = ""
+        return
+
+    # Один запрос: все AD-записи, чей DN совпадает с одним из manager DN
+    all_ad = db.query(ADRecord).filter(
+        ADRecord.distinguished_name != "",
+        ADRecord.distinguished_name.isnot(None),
+    ).all()
+
+    dn_to_info: dict[str, dict] = {}
+    for r in all_ad:
+        dn = norm(r.distinguished_name).lower()
+        if dn and dn in mgr_dns:
+            uuid = norm(r.staff_uuid)
+            login = norm(r.login)
+            key = uuid.lower() if uuid else f"_login_{login.lower()}" if login else ""
+            # Извлекаем CN из DN
+            cn = ""
+            dn_orig = norm(r.distinguished_name)
+            if dn_orig.upper().startswith("CN="):
+                cn = dn_orig.split(",")[0][3:]
+            dn_to_info[dn] = {
+                "key": key,
+                "name": norm(r.display_name) or cn or login,
+            }
+
+    for c in ad_cards:
+        mgr = c.get("manager", "")
+        info = dn_to_info.get(mgr.lower(), {}) if mgr else {}
+        c["manager_key"] = info.get("key", "")
+        c["manager_name"] = info.get("name", "")
+
+
 def _build_ad_cards(ad_recs, logins):
     """Строит список карточек AD-записей."""
     cards = []
@@ -220,6 +268,9 @@ def user_card(
     # --- AD ---
     ad_cards, logins = _build_ad_cards(ad_recs, logins)
 
+    # --- Резолв руководителей ---
+    _resolve_managers(ad_cards, db)
+
     # --- MFA (один запрос вместо N) ---
     mfa_cards = _fetch_mfa_cards(logins, db)
 
@@ -250,6 +301,16 @@ def user_card(
     elif mfa_cards and mfa_cards[0]["name"]:
         fio = mfa_cards[0]["name"]
 
+    # Сводные поля для шапки карточки
+    city = ""
+    for c in ad_cards:
+        if c.get("location"):
+            city = c["location"]
+            break
+    hub = people_card["hub"] if people_card else ""
+    dp_unit = people_card["unit"] if people_card else ""
+    rm = people_card["unit_manager"] if people_card else ""
+
     # --- Возможные совпадения ---
     matches = _find_matches(
         key, staff_uuid, logins, fio,
@@ -263,6 +324,10 @@ def user_card(
         "staff_uuid": staff_uuid,
         "fio": fio,
         "logins": logins,
+        "city": city,
+        "hub": hub,
+        "dp_unit": dp_unit,
+        "rm": rm,
         "ad": ad_cards,
         "mfa": mfa_cards,
         "people": people_card,

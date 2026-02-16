@@ -6,6 +6,7 @@
     { href: "/users",     label: "Пользователи" },
     { href: "/groups",    label: "Группы AD" },
     { href: "/structure", label: "Структура OU" },
+    { href: "/org",        label: "Организация" },
     { href: "/duplicates", label: "Дубли" },
   ];
 

@@ -144,9 +144,11 @@
       if (col.key === excludeKey) return;
       var f = colFilters[col.key] || "";
       if (!f) return;
-      rows = rows.filter(function (row) {
-        return String(row[col.key] == null ? "" : row[col.key]) === f;
-      });
+      if (f === "__EMPTY__") {
+        rows = rows.filter(function (row) { var v = row[col.key]; return v == null || v === ""; });
+      } else {
+        rows = rows.filter(function (row) { return String(row[col.key] == null ? "" : row[col.key]) === f; });
+      }
     });
 
     return rows;
@@ -161,9 +163,11 @@
 
       var available = rowsFilteredExcept(key);
       var vals = {};
+      var hasEmpty = false;
       for (var j = 0; j < available.length; j++) {
         var v = available[j][key];
-        if (v != null && v !== "") vals[String(v)] = true;
+        if (v == null || v === "") { hasEmpty = true; continue; }
+        vals[String(v)] = true;
       }
       var isDate = !!DATE_KEYS[key];
       var sorted = Object.keys(vals).sort(function (a, b) {
@@ -184,8 +188,16 @@
       var fragment = document.createDocumentFragment();
       var optAll = document.createElement("option");
       optAll.value = "";
-      optAll.textContent = "\u2014 все (" + sorted.length + ")";
+      optAll.textContent = "\u2014 все (" + (sorted.length + (hasEmpty ? 1 : 0)) + ")";
       fragment.appendChild(optAll);
+
+      // «ПУСТО» — первым после «все»
+      if (hasEmpty) {
+        var optEmpty = document.createElement("option");
+        optEmpty.value = "__EMPTY__";
+        optEmpty.textContent = "ПУСТО";
+        fragment.appendChild(optEmpty);
+      }
 
       for (var k = 0; k < sorted.length; k++) {
         var opt = document.createElement("option");
@@ -252,9 +264,11 @@
     COLUMNS.forEach(function (col) {
       var f = colFilters[col.key] || "";
       if (!f) return;
-      rows = rows.filter(function (row) {
-        return String(row[col.key] == null ? "" : row[col.key]) === f;
-      });
+      if (f === "__EMPTY__") {
+        rows = rows.filter(function (row) { var v = row[col.key]; return v == null || v === ""; });
+      } else {
+        rows = rows.filter(function (row) { return String(row[col.key] == null ? "" : row[col.key]) === f; });
+      }
     });
 
     if (sortCol) {
