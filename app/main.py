@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # ─── Хелперы ────────────────────────────────────────────────
 
-STATIC_DIR = Path(__file__).resolve().parent / "static"
+DIST_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 
 async def _read_upload(file: UploadFile) -> bytes:
@@ -94,15 +94,16 @@ app.include_router(duplicates_router)
 app.include_router(org_router)
 app.include_router(security_router)
 
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+_assets_dir = DIST_DIR / "assets"
+if _assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 
 
 # ─── Favicon ─────────────────────────────────────────────────
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
-    ico = STATIC_DIR / "favicon.ico"
+    ico = DIST_DIR / "favicon.ico"
     if ico.exists():
         return FileResponse(str(ico), media_type="image/x-icon")
     return HTMLResponse("", status_code=204)
@@ -441,7 +442,7 @@ async def debug_columns():
 @app.get("/{path:path}", response_class=HTMLResponse)
 async def spa_catchall(path: str):
     """Отдаёт Vue SPA index.html для всех не-API маршрутов."""
-    dist_index = STATIC_DIR / "dist" / "index.html"
-    if dist_index.exists():
-        return dist_index.read_text(encoding="utf-8")
+    index = DIST_DIR / "index.html"
+    if index.exists():
+        return index.read_text(encoding="utf-8")
     return HTMLResponse("Frontend not built. Run: cd frontend && npm run build", status_code=404)

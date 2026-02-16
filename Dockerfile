@@ -13,7 +13,7 @@ COPY app/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app/ ./app/
-COPY --from=frontend /frontend-dist ./app/static/dist/
+COPY --from=frontend /frontend-dist ./frontend/dist/
 
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
