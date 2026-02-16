@@ -2,7 +2,8 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { fetchJSON } from '../api'
 import { useExport } from '../composables/useExport'
-import { dateSortKey } from '../utils/format'
+import { dateSortKey, debounce } from '../utils/format'
+import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const COLUMNS = [
   { key: 'source',             label: 'Источник' },
@@ -31,9 +32,22 @@ const COLUMNS = [
   { key: 'discrepancies',      label: 'Расхождения' },
 ]
 
-const TOTAL_COLS = COLUMNS.length + 1
 const DATE_KEYS = { password_last_set: true, account_expires: true, mfa_created_at: true, mfa_last_login: true }
 const CHUNK = 200
+const COL_STORAGE_KEY = 'consolidated-hidden-cols'
+
+const hiddenCols = ref(new Set(JSON.parse(localStorage.getItem(COL_STORAGE_KEY) || '[]')))
+const showColManager = ref(false)
+
+const visibleColumns = computed(() => COLUMNS.filter(c => !hiddenCols.value.has(c.key)))
+const TOTAL_COLS = computed(() => visibleColumns.value.length + 1)
+
+function toggleColumn(key) {
+  const s = new Set(hiddenCols.value)
+  if (s.has(key)) s.delete(key); else s.add(key)
+  hiddenCols.value = s
+  localStorage.setItem(COL_STORAGE_KEY, JSON.stringify([...s]))
+}
 
 const cachedRows = ref([])
 const filteredRows = ref([])
@@ -137,6 +151,8 @@ function applyFilters() {
   nextTick(renderChunk)
 }
 
+const debouncedApplyFilters = debounce(applyFilters, 300)
+
 function renderChunk() {
   const end = Math.min(renderedCount.value + CHUNK, filteredRows.value.length)
   renderedCount.value = end
@@ -222,7 +238,7 @@ onMounted(async () => {
     <div class="toolbar-right">
       <span class="table-info">{{ footerText }}</span>
       <div class="filter-wrap">
-        <input type="text" v-model="globalFilter" @input="applyFilters" placeholder="Поиск…">
+        <input type="text" v-model="globalFilter" @input="debouncedApplyFilters" placeholder="Поиск…">
       </div>
       <button type="button" class="btn-icon" title="Сбросить фильтры" @click="resetFilters">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -230,6 +246,26 @@ onMounted(async () => {
           <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
         </svg>
       </button>
+      <div class="col-manager-wrap">
+        <button type="button" class="btn-icon" title="Настройка колонок"
+          @click="showColManager = !showColManager">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/>
+            <line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/>
+            <line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/>
+            <line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/>
+            <line x1="17" y1="16" x2="23" y2="16"/>
+          </svg>
+        </button>
+        <div v-if="showColManager" class="col-manager-dropdown">
+          <label v-for="col in COLUMNS" :key="col.key" class="col-manager-item">
+            <input type="checkbox" :checked="!hiddenCols.has(col.key)"
+              @change="toggleColumn(col.key)">
+            {{ col.label }}
+          </label>
+        </div>
+      </div>
       <button type="button" class="btn-icon btn-export" title="Выгрузить XLSX" @click="doExport">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -247,7 +283,7 @@ onMounted(async () => {
         <!-- Labels row -->
         <tr class="thead-labels">
           <th class="col-num">#</th>
-          <th v-for="col in COLUMNS" :key="col.key" class="sortable" :data-key="col.key"
+          <th v-for="col in visibleColumns" :key="col.key" class="sortable" :data-key="col.key"
             :class="{ 'filter-active': !!colFilters[col.key] }" @click="onSort(col.key)">
             {{ col.label }} <span class="sort-icon">{{ sortIcon(col.key) }}</span>
           </th>
@@ -255,7 +291,7 @@ onMounted(async () => {
         <!-- Filters row -->
         <tr class="thead-filters">
           <th class="col-num"></th>
-          <th v-for="col in COLUMNS" :key="col.key">
+          <th v-for="col in visibleColumns" :key="col.key">
             <select class="col-filter" :value="colFilters[col.key] || ''"
               @change="onColFilter(col.key, ($event.target).value)">
               <option v-for="opt in filterOptions(col.key)" :key="opt.value" :value="opt.value">
@@ -266,7 +302,7 @@ onMounted(async () => {
         </tr>
       </thead>
       <tbody>
-        <tr v-if="loading"><td :colspan="TOTAL_COLS" class="muted-text">Загрузка…</td></tr>
+        <tr v-if="loading"><td :colspan="TOTAL_COLS"><LoadingSpinner text="Загрузка данных…" /></td></tr>
         <tr v-else-if="!visibleRows.length"><td :colspan="TOTAL_COLS" class="muted-text">Нет данных</td></tr>
         <tr v-else v-for="(row, idx) in visibleRows" :key="idx"
           :class="[
@@ -276,7 +312,7 @@ onMounted(async () => {
             row.account_type === 'Contractor' ? 'uz-contractor' : '',
           ]">
           <td class="col-num">{{ idx + 1 }}</td>
-          <td v-for="col in COLUMNS" :key="col.key"
+          <td v-for="col in visibleColumns" :key="col.key"
             :class="{ discrepancy: col.key === 'discrepancies' }">
             {{ row[col.key] ?? '' }}
           </td>

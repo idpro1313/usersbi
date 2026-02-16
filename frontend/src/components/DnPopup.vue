@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import PopupOverlay from './PopupOverlay.vue'
+import LoadingSpinner from './LoadingSpinner.vue'
 import FieldsTable from './FieldsTable.vue'
 import { fetchJSON } from '../api'
 
@@ -38,7 +39,7 @@ onMounted(async () => {
 <template>
   <PopupOverlay :title="displayName || 'Объект AD'" wide @close="emit('close')">
     <p v-if="error" class="muted-text">Ошибка: {{ error }}</p>
-    <p v-else-if="!parsed" class="muted-text">Загрузка…</p>
+    <LoadingSpinner v-else-if="!parsed" />
     <template v-else>
       <FieldsTable :pairs="[
         ['Имя (CN)', parsed.name],

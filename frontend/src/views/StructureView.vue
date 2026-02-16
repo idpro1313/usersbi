@@ -1,10 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import MembersTable from '../components/MembersTable.vue'
 import OuTreeNode from '../components/OuTreeNode.vue'
 import { fetchJSON } from '../api'
 import { useExport } from '../composables/useExport'
+import { debounce } from '../utils/format'
 
 const COLUMNS = [
   { key: 'login',        label: 'Логин' },
@@ -28,6 +29,9 @@ const selectedDomain = ref(null)
 const ouTitle = ref('')
 const ouCount = ref('')
 const searchText = ref('')
+const debouncedSearch = ref('')
+const _syncSearch = debounce(() => { debouncedSearch.value = searchText.value }, 200)
+watch(searchText, _syncSearch)
 const { exportToXLSX } = useExport()
 
 const breadcrumbParts = ref([])
@@ -105,7 +109,7 @@ onMounted(async () => {
             </div>
             <OuTreeNode v-for="node in domain.tree" :key="node.name"
               :node="node" parentPath="" :domainKey="domain.key"
-              :filter="searchText.trim().toLowerCase()"
+              :filter="debouncedSearch.trim().toLowerCase()"
               :selectedPath="selectedPath" :selectedDomain="selectedDomain"
               @select="loadMembers" />
           </div>

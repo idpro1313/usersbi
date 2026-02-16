@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import PopupOverlay from '../components/PopupOverlay.vue'
 import UserCardPopup from '../components/UserCardPopup.vue'
 import DnPopup from '../components/DnPopup.vue'
+import LoadingSpinner from '../components/LoadingSpinner.vue'
 import { fetchJSON } from '../api'
 import { escapeHtml } from '../utils/format'
 
@@ -99,7 +100,7 @@ function buildTableHtml(items, extraCols) {
 
       <!-- Summary -->
       <div class="sec-summary">
-        <p v-if="!summaryCards.length && !error" class="muted-text">Загрузка…</p>
+        <LoadingSpinner v-if="!summaryCards.length && !error" text="Анализ безопасности…" />
         <div v-for="(c, i) in summaryCards" :key="i" class="sec-card" :class="c.cls">
           <div class="sec-card-value">{{ c.value }}</div>
           <div class="sec-card-label">{{ c.label }}</div>

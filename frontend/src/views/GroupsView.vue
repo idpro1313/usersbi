@@ -1,8 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import MembersTable from '../components/MembersTable.vue'
 import { fetchJSON } from '../api'
+import { debounce } from '../utils/format'
 import { useExport } from '../composables/useExport'
 
 const COLUMNS = [
@@ -27,6 +28,9 @@ const selectedDomain = ref(null)
 const groupsTitle = ref('')
 const groupsCount = ref('')
 const searchText = ref('')
+const debouncedSearch = ref('')
+const _syncSearch = debounce(() => { debouncedSearch.value = searchText.value }, 200)
+watch(searchText, _syncSearch)
 const { exportToXLSX } = useExport()
 
 async function loadTree() {
@@ -55,7 +59,7 @@ async function loadMembers(group, domain) {
 }
 
 function filteredTree() {
-  const filter = searchText.value.trim().toLowerCase()
+  const filter = debouncedSearch.value.trim().toLowerCase()
   return treeData.value.map(domain => {
     let groups = domain.groups
     if (filter) groups = groups.filter(g => g.name.toLowerCase().includes(filter))

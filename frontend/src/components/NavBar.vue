@@ -1,7 +1,9 @@
 <script setup>
 import { useRoute } from 'vue-router'
+import { useTheme } from '../composables/useTheme'
 
 const route = useRoute()
+const { mode, cycle } = useTheme()
 
 const BRAND = 'Девелоника Пользователи'
 const ITEMS = [
@@ -19,6 +21,9 @@ function isActive(to) {
   if (to === '/') return route.path === '/'
   return route.path.startsWith(to)
 }
+
+const themeIcons = { auto: '◑', light: '☀', dark: '☾' }
+const themeLabels = { auto: 'Авто', light: 'Светлая', dark: 'Тёмная' }
 </script>
 
 <template>
@@ -36,6 +41,9 @@ function isActive(to) {
           {{ item.label }}
         </router-link>
       </div>
+      <button class="btn-theme" :title="'Тема: ' + themeLabels[mode]" @click="cycle">
+        {{ themeIcons[mode] }}
+      </button>
     </div>
   </nav>
 </template>

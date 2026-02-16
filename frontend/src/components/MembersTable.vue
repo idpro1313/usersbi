@@ -2,6 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { sortRows } from '../utils/format'
 import { useExport } from '../composables/useExport'
+import LoadingSpinner from './LoadingSpinner.vue'
 
 const props = defineProps({
   columns: { type: Array, required: true },
@@ -59,7 +60,7 @@ defineExpose({ doExport })
     </thead>
     <tbody>
       <tr v-if="loading">
-        <td :colspan="columns.length" class="muted-text">Загрузка…</td>
+        <td :colspan="columns.length"><LoadingSpinner /></td>
       </tr>
       <tr v-else-if="!sorted.length">
         <td :colspan="columns.length" class="muted-text">{{ emptyMessage }}</td>

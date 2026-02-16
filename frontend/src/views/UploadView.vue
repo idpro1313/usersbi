@@ -1,6 +1,9 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { fetchJSON, postForm, del } from '../api'
+import { useToast } from '../composables/useToast'
+
+const toast = useToast()
 
 const SyncIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`
 const UploadIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>`
@@ -16,32 +19,45 @@ const statuses = reactive({})
 const stats = ref('')
 const fileRefs = {}
 
+const dragOver = reactive({})
+
 function setStatus(key, ok, msg) {
   statuses[key] = { ok, msg }
 }
 
-async function uploadFile(key, endpoint) {
-  const input = fileRefs[key]
-  if (!input) return
-  input.click()
-  await new Promise(resolve => {
-    input.onchange = resolve
-  })
-  const file = input.files[0]
-  if (!file) return
+async function doUpload(statusKey, endpoint, file) {
   const form = new FormData()
   form.append('file', file)
   try {
     const data = await postForm(endpoint, form)
     let msg = 'Загружено: ' + data.rows + ' записей (' + data.filename + ')'
     if (data.skipped) msg += ' | пропущено ' + data.skipped + ' чужих'
-    setStatus(key, true, msg)
+    setStatus(statusKey, true, msg)
     loadStats()
   } catch (e) {
-    setStatus(key, false, e.message)
+    setStatus(statusKey, false, e.message)
   }
+}
+
+async function uploadFile(key, endpoint) {
+  const input = fileRefs[key]
+  if (!input) return
+  input.click()
+  await new Promise(resolve => { input.onchange = resolve })
+  const file = input.files[0]
+  if (!file) return
+  await doUpload(key, endpoint, file)
   input.value = ''
 }
+
+function onDrop(e, statusKey, endpoint) {
+  e.preventDefault()
+  dragOver[statusKey] = false
+  const file = e.dataTransfer?.files?.[0]
+  if (file) doUpload(statusKey, endpoint, file)
+}
+function onDragOver(e, key) { e.preventDefault(); dragOver[key] = true }
+function onDragLeave(key) { dragOver[key] = false }
 
 async function syncDomain(key) {
   setStatus(key, true, 'Синхронизация…')
@@ -92,10 +108,10 @@ async function clearAll() {
   try {
     const data = await del('/api/clear/all')
     const d = data.deleted
-    alert('Удалено: AD ' + d.ad + ', MFA ' + d.mfa + ', Кадры ' + d.people)
+    toast.success('Удалено: AD ' + d.ad + ', MFA ' + d.mfa + ', Кадры ' + d.people)
     loadStats()
   } catch (e) {
-    alert('Ошибка: ' + e.message)
+    toast.error('Ошибка: ' + e.message)
   }
 }
 
@@ -168,9 +184,13 @@ onMounted(async () => {
       <!-- File Upload Section -->
       <div v-else>
         <div class="upload-cards">
-          <div v-for="key in adDomains" :key="key" class="card card-ad">
+          <div v-for="key in adDomains" :key="key" class="card card-ad"
+            :class="{ 'drop-active': dragOver['ad-' + key] }"
+            @dragover="onDragOver($event, 'ad-' + key)"
+            @dragleave="onDragLeave('ad-' + key)"
+            @drop="onDrop($event, 'ad-' + key, '/api/upload/ad/' + key)">
             <h3>{{ adCityNames[key] }}</h3>
-            <p>Excel / CSV</p>
+            <p>Excel / CSV — или перетащите файл сюда</p>
             <input type="file" :ref="el => { if (el) fileRefs['ad-' + key] = el }" accept=".csv,.xlsx,.xls" hidden>
             <button type="button" class="btn-icon btn-accent" title="Загрузить"
               @click="uploadFile('ad-' + key, '/api/upload/ad/' + key)" v-html="UploadIcon"></button>
@@ -185,9 +205,13 @@ onMounted(async () => {
 
       <div class="upload-section-label">Другие источники</div>
       <div class="upload-cards">
-        <div class="card">
+        <div class="card"
+          :class="{ 'drop-active': dragOver['mfa'] }"
+          @dragover="onDragOver($event, 'mfa')"
+          @dragleave="onDragLeave('mfa')"
+          @drop="onDrop($event, 'mfa', '/api/upload/mfa')">
           <h3>MFA</h3>
-          <p>CSV (разделитель «;»)</p>
+          <p>CSV (разделитель «;») — или перетащите файл</p>
           <input type="file" :ref="el => { if (el) fileRefs['mfa'] = el }" accept=".csv" hidden>
           <button type="button" class="btn-icon btn-accent" title="Загрузить"
             @click="uploadFile('mfa', '/api/upload/mfa')" v-html="UploadIcon"></button>
@@ -197,9 +221,13 @@ onMounted(async () => {
             {{ statuses['mfa'].msg }}
           </div>
         </div>
-        <div class="card">
+        <div class="card"
+          :class="{ 'drop-active': dragOver['people'] }"
+          @dragover="onDragOver($event, 'people')"
+          @dragleave="onDragLeave('people')"
+          @drop="onDrop($event, 'people', '/api/upload/people')">
           <h3>Кадры</h3>
-          <p>Excel, первый лист</p>
+          <p>Excel, первый лист — или перетащите файл</p>
           <input type="file" :ref="el => { if (el) fileRefs['people'] = el }" accept=".xlsx,.xls" hidden>
           <button type="button" class="btn-icon btn-accent" title="Загрузить"
             @click="uploadFile('people', '/api/upload/people')" v-html="UploadIcon"></button>

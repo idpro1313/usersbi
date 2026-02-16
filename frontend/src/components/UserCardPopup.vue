@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import PopupOverlay from './PopupOverlay.vue'
 import FieldsTable from './FieldsTable.vue'
 import AdSections from './AdSections.vue'
+import LoadingSpinner from './LoadingSpinner.vue'
 import { fetchJSON } from '../api'
 
 const props = defineProps({
@@ -39,7 +40,7 @@ function summaryParts() {
 <template>
   <PopupOverlay :title="title" wide @close="emit('close')">
     <p v-if="error" class="muted-text">Ошибка: {{ error }}</p>
-    <p v-else-if="!data" class="muted-text">Загрузка…</p>
+    <LoadingSpinner v-else-if="!data" />
     <template v-else>
       <!-- Header -->
       <div class="ucard-header">

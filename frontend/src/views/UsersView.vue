@@ -7,6 +7,7 @@ import UserCardPopup from '../components/UserCardPopup.vue'
 import DnPopup from '../components/DnPopup.vue'
 import { fetchJSON } from '../api'
 import { escapeHtml } from '../utils/format'
+import LoadingSpinner from '../components/LoadingSpinner.vue'
 
 const allUsers = ref([])
 const selectedKey = ref(null)
@@ -221,7 +222,7 @@ onMounted(loadList)
     <!-- Card -->
     <div class="groups-main">
       <div class="user-card-wrap" @click="onCardClick">
-        <p v-if="cardLoading" class="muted-text">Загрузка…</p>
+        <LoadingSpinner v-if="cardLoading" />
         <p v-else-if="cardError" class="muted-text">Ошибка: {{ cardError }}</p>
         <p v-else-if="!cardData" class="muted-text">Выберите пользователя</p>
         <template v-else>
@@ -310,7 +311,7 @@ onMounted(loadList)
 
   <!-- Members popup -->
   <PopupOverlay v-if="membersPopup" :title="membersPopup.title" @close="membersPopup = null">
-    <p v-if="membersLoading" class="muted-text">Загрузка…</p>
+    <LoadingSpinner v-if="membersLoading" text="Загрузка списка…" />
     <template v-else-if="membersData.length">
       <p class="popup-count">Участников: {{ membersData.length }}</p>
       <table class="data-table popup-table">

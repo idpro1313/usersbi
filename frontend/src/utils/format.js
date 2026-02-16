@@ -21,6 +21,17 @@ export function dateSortKey(val) {
 }
 
 /**
+ * Debounce helper: delays invoking fn until after ms milliseconds.
+ */
+export function debounce(fn, ms = 300) {
+  let timer = null
+  return function (...args) {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn.apply(this, args), ms)
+  }
+}
+
+/**
  * Sort rows array by column with optional date-aware sorting.
  */
 export function sortRows(rows, col, dir, dateKeys) {

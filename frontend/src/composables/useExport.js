@@ -1,10 +1,14 @@
+import { useToast } from './useToast'
+
 /**
  * Export table data to XLSX via backend.
  */
 export function useExport() {
+  const toast = useToast()
+
   async function exportToXLSX(columns, rows, filename, sheet) {
     if (!rows || !rows.length) {
-      alert('Нет данных для выгрузки')
+      toast.warn('Нет данных для выгрузки')
       return
     }
     try {
@@ -19,7 +23,7 @@ export function useExport() {
         }),
       })
       if (!r.ok) {
-        alert('Ошибка экспорта')
+        toast.error('Ошибка экспорта')
         return
       }
       const blob = await r.blob()
@@ -31,8 +35,9 @@ export function useExport() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      toast.success('Файл «' + filename + '» выгружен')
     } catch (e) {
-      alert('Ошибка: ' + e.message)
+      toast.error('Ошибка: ' + e.message)
     }
   }
 

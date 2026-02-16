@@ -1,8 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import MembersTable from '../components/MembersTable.vue'
 import { fetchJSON } from '../api'
 import { useExport } from '../composables/useExport'
+import { debounce } from '../utils/format'
 
 const COLUMNS = [
   { key: 'login',        label: 'Логин' },
@@ -26,6 +27,9 @@ const selectedCompany = ref(null)
 const selectedDepartment = ref(null)
 const hideDisabled = ref(false)
 const searchText = ref('')
+const debouncedSearch = ref('')
+const _syncSearch = debounce(() => { debouncedSearch.value = searchText.value }, 200)
+watch(searchText, _syncSearch)
 const orgTitle = ref('')
 const { exportToXLSX } = useExport()
 
@@ -71,7 +75,7 @@ async function loadMembers(company, department) {
 }
 
 function filteredTree() {
-  const filter = searchText.value.trim().toLowerCase()
+  const filter = debouncedSearch.value.trim().toLowerCase()
   let companies = treeData.value
   if (filter) {
     companies = companies.filter(c =>
