@@ -20,27 +20,32 @@ def _extract_domain_from_dn(dn: str) -> str:
 
 
 def _map_columns(df: pd.DataFrame, primary: dict) -> pd.DataFrame:
-    """Прямой маппинг колонок DataFrame по точным именам из config."""
+    """Маппинг колонок DataFrame по именам из config (case-insensitive)."""
     rename_map = {}
+    col_lower = {c.lower(): c for c in df.columns}
     for target, expected in primary.items():
         if not expected:
             continue
-        if expected in df.columns:
-            rename_map[expected] = target
+        real_col = col_lower.get(expected.lower())
+        if real_col is not None:
+            rename_map[real_col] = target
     if rename_map:
         df = df.rename(columns=rename_map)
     return df
 
 
 def _read_file(content: bytes, filename: str) -> pd.DataFrame:
-    """Читает CSV или Excel файл в DataFrame."""
+    """Читает CSV или Excel файл в DataFrame.
+
+    CSV: автоматически определяет разделитель (; или ,) по первой строке.
+    Поддержка UTF-8 с BOM (utf-8-sig).
+    """
     ext = (filename or "").lower().split(".")[-1]
     if ext in ("xlsx", "xls"):
         return pd.read_excel(io.BytesIO(content), sheet_name=0)
-    df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=",", on_bad_lines="skip")
-    if df.shape[1] == 1:
-        df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=";", on_bad_lines="skip")
-    return df
+    first_line = content.decode("utf-8-sig", errors="replace").split("\n", 1)[0]
+    sep = ";" if first_line.count(";") > first_line.count(",") else ","
+    return pd.read_csv(io.BytesIO(content), encoding="utf-8-sig", sep=sep, on_bad_lines="skip")
 
 
 # Хранит информацию о последнем парсинге для диагностики
@@ -110,27 +115,80 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "",
         rows = []
         for r in records:
             domain_val = override_domain if override_domain else norm(r.get("domain", ""))
+            pwd_ts = norm(r.get("pwd_last_set", ""))
             rows.append({
                 "domain": domain_val,
+                # --- основные ---
                 "login": norm(r.get("login", "")),
                 "enabled": norm(r.get("enabled", "")),
-                "password_last_set": safe_date(r.get("password_last_set")),
-                "account_expires": safe_date(r.get("account_expires")),
+                "display_name": norm(r.get("display_name", "")),
+                "given_name": norm(r.get("given_name", "")),
+                "surname_ad": norm(r.get("surname_ad", "")),
                 "email": norm(r.get("email", "")),
+                "upn": norm(r.get("upn", "")),
                 "phone": norm_phone(r.get("phone", "")),
                 "mobile": norm_phone(r.get("mobile", "")),
-                "display_name": norm(r.get("display_name", "")),
-                "staff_uuid": norm(r.get("staff_uuid", "")),
                 "title": norm(r.get("title", "")),
                 "manager": norm(r.get("manager", "")),
                 "distinguished_name": norm(r.get("distinguished_name", "")),
                 "company": norm(r.get("company", "")),
                 "department": norm(r.get("department", "")),
-                "location": norm(r.get("location", "")),
+                "description": norm(r.get("description", "")),
+                "employee_type": norm(r.get("employee_type", "")),
                 "employee_number": norm(r.get("employee_number", "")),
+                "location": norm(r.get("location", "")),
+                "street_address": norm(r.get("street_address", "")),
+                "staff_uuid": norm(r.get("staff_uuid", "")),
                 "info": norm(r.get("info", "")),
-                "must_change_password": norm(r.get("must_change_password", "")),
+                # --- пароль и сроки ---
+                "password_last_set": safe_date(r.get("password_last_set")),
+                "pwd_last_set": pwd_ts,
+                "must_change_password": "Да" if not pwd_ts else "Нет",
+                "password_expired": norm(r.get("password_expired", "")),
+                "password_never_expires": norm(r.get("password_never_expires", "")),
+                "password_not_required": norm(r.get("password_not_required", "")),
+                "cannot_change_password": norm(r.get("cannot_change_password", "")),
+                "account_expiration_date": safe_date(r.get("account_expiration_date")),
+                "account_expires": norm(r.get("account_expires", "")),
+                # --- аудит активности ---
+                "last_logon_date": safe_date(r.get("last_logon_date")),
+                "last_logon_timestamp": norm(r.get("last_logon_timestamp", "")),
+                "logon_count": norm(r.get("logon_count", "")),
+                "last_bad_password_attempt": safe_date(r.get("last_bad_password_attempt")),
+                "bad_logon_count": norm(r.get("bad_logon_count", "")),
+                "locked_out": norm(r.get("locked_out", "")),
+                # --- жизненный цикл ---
+                "created_date": safe_date(r.get("created_date")),
+                "modified_date": safe_date(r.get("modified_date")),
+                "when_created": safe_date(r.get("when_created")),
+                "when_changed": safe_date(r.get("when_changed")),
+                "exported_at": norm(r.get("exported_at", "")),
+                # --- безопасность ---
+                "trusted_for_delegation": norm(r.get("trusted_for_delegation", "")),
+                "trusted_to_auth_for_delegation": norm(r.get("trusted_to_auth_for_delegation", "")),
+                "account_not_delegated": norm(r.get("account_not_delegated", "")),
+                "does_not_require_preauth": norm(r.get("does_not_require_preauth", "")),
+                "allow_reversible_password_encryption": norm(r.get("allow_reversible_password_encryption", "")),
+                "smartcard_logon_required": norm(r.get("smartcard_logon_required", "")),
+                "protected_from_accidental_deletion": norm(r.get("protected_from_accidental_deletion", "")),
+                "user_account_control": norm(r.get("user_account_control", "")),
+                "service_principal_names": norm(r.get("service_principal_names", "")),
+                "account_lockout_time": safe_date(r.get("account_lockout_time")),
+                # --- идентификаторы ---
+                "object_guid": norm(r.get("object_guid", "")),
+                "sid": norm(r.get("sid", "")),
+                "canonical_name": norm(r.get("canonical_name", "")),
+                # --- профиль ---
+                "logon_workstations": norm(r.get("logon_workstations", "")),
+                "home_drive": norm(r.get("home_drive", "")),
+                "home_directory": norm(r.get("home_directory", "")),
+                "profile_path": norm(r.get("profile_path", "")),
+                "script_path": norm(r.get("script_path", "")),
+                # --- связи ---
                 "groups": norm(r.get("groups", "")),
+                "direct_reports": norm(r.get("direct_reports", "")),
+                "managed_objects": norm(r.get("managed_objects", "")),
+                "primary_group": norm(r.get("primary_group", "")),
             })
         return rows, None, skipped
     except Exception as e:

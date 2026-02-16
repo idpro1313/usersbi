@@ -37,17 +37,68 @@ class ADRecord(Base):
     mobile = Column(String(100), default="")
     display_name = Column(String(255), default="")
     staff_uuid = Column(String(100), default="", index=True)
-    # --- дополнительные поля из файла AD ---
+    # --- дополнительные основные ---
+    given_name = Column(String(255), default="")
+    surname_ad = Column(String(255), default="")
+    upn = Column(String(255), default="")
     title = Column(String(255), default="")
     manager = Column(Text, default="")
     distinguished_name = Column(Text, default="")
     company = Column(String(255), default="")
     department = Column(String(255), default="")
-    location = Column(String(255), default="")          # поле "l" в файле
+    description = Column(Text, default="")
+    employee_type = Column(String(100), default="")
+    location = Column(String(255), default="")
+    street_address = Column(String(500), default="")
     employee_number = Column(String(100), default="")
     info = Column(Text, default="")
     must_change_password = Column(String(20), default="")
     groups = Column(Text, default="")
+    # --- пароль и сроки ---
+    pwd_last_set = Column(String(50), default="")
+    password_expired = Column(String(20), default="")
+    password_never_expires = Column(String(20), default="")
+    password_not_required = Column(String(20), default="")
+    cannot_change_password = Column(String(20), default="")
+    account_expiration_date = Column(String(50), default="")
+    # --- аудит активности ---
+    last_logon_date = Column(String(50), default="")
+    last_logon_timestamp = Column(String(50), default="")
+    logon_count = Column(String(20), default="")
+    last_bad_password_attempt = Column(String(50), default="")
+    bad_logon_count = Column(String(20), default="")
+    locked_out = Column(String(20), default="")
+    # --- жизненный цикл ---
+    created_date = Column(String(50), default="")
+    modified_date = Column(String(50), default="")
+    when_created = Column(String(50), default="")
+    when_changed = Column(String(50), default="")
+    exported_at = Column(String(50), default="")
+    # --- безопасность ---
+    trusted_for_delegation = Column(String(20), default="")
+    trusted_to_auth_for_delegation = Column(String(20), default="")
+    account_not_delegated = Column(String(20), default="")
+    does_not_require_preauth = Column(String(20), default="")
+    allow_reversible_password_encryption = Column(String(20), default="")
+    smartcard_logon_required = Column(String(20), default="")
+    protected_from_accidental_deletion = Column(String(20), default="")
+    user_account_control = Column(String(20), default="")
+    service_principal_names = Column(Text, default="")
+    account_lockout_time = Column(String(50), default="")
+    # --- идентификаторы ---
+    object_guid = Column(String(100), default="")
+    sid = Column(String(200), default="")
+    canonical_name = Column(Text, default="")
+    # --- профиль и ограничения ---
+    logon_workstations = Column(Text, default="")
+    home_drive = Column(String(20), default="")
+    home_directory = Column(Text, default="")
+    profile_path = Column(Text, default="")
+    script_path = Column(Text, default="")
+    # --- связи ---
+    direct_reports = Column(Text, default="")
+    managed_objects = Column(Text, default="")
+    primary_group = Column(Text, default="")
 
 
 class MFARecord(Base):

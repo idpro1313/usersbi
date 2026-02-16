@@ -163,19 +163,7 @@
         var inactive = a.enabled === "Нет";
         html += "<div class=\"ucard-ad-block" + (inactive ? " uz-inactive" : "") + "\">";
         html += "<div class=\"ucard-ad-domain\">" + esc(a.domain) + " — " + esc(a.login) + "</div>";
-        html += renderFieldsTable([
-          ["ФИО", a.display_name], ["Email", a.email],
-          ["Телефон", a.phone], ["Мобильный", a.mobile],
-          ["Активна", a.enabled], ["Смена пароля", a.password_last_set], ["Требуется смена", a.must_change_password],
-          ["Срок УЗ", a.account_expires], ["Должность", a.title],
-          ["Отдел", a.department], ["Компания", a.company],
-          ["Расположение", a.location],
-          ["Руководитель", { html: renderManagerLink(a.manager, a.manager_key, a.manager_name) }],
-          ["Таб. номер", a.employee_number],
-          ["OU", { html: renderOuLink(a.distinguished_name, a.ad_source) }],
-          ["Группы", { html: renderGroupLinks(a.groups, a.ad_source) }],
-          ["Инфо", a.info], ["StaffUUID", a.staff_uuid],
-        ]);
+        html += renderAdSections(a);
         html += "</div>";
       }
     } else {
@@ -231,6 +219,107 @@
     }
 
     cardWrap.innerHTML = html;
+  }
+
+  function renderAdSections(a) {
+    var h = "";
+    // Основные
+    h += "<div class=\"ucard-ad-section-label\">Основные</div>";
+    h += renderFieldsTable([
+      ["ФИО", a.display_name], ["Имя", a.given_name], ["Фамилия", a.surname_ad],
+      ["UPN", a.upn], ["Email", a.email],
+      ["Телефон", a.phone], ["Мобильный", a.mobile],
+      ["Описание", a.description],
+    ]);
+    // Должность и компания
+    h += "<div class=\"ucard-ad-section-label\">Должность</div>";
+    h += renderFieldsTable([
+      ["Должность", a.title], ["Отдел", a.department], ["Компания", a.company],
+      ["Тип сотрудника", a.employee_type], ["Расположение", a.location],
+      ["Адрес", a.street_address],
+      ["Руководитель", { html: renderManagerLink(a.manager, a.manager_key, a.manager_name) }],
+      ["Таб. номер", a.employee_number],
+    ]);
+    // Статус УЗ
+    h += "<div class=\"ucard-ad-section-label\">Статус</div>";
+    h += renderFieldsTable([
+      ["Активна", a.enabled], ["Заблокирована", a.locked_out],
+      ["Время блокировки", a.account_lockout_time],
+    ]);
+    // Пароль
+    h += "<div class=\"ucard-ad-section-label\">Пароль</div>";
+    h += renderFieldsTable([
+      ["Смена пароля", a.password_last_set], ["Пароль сменён", a.pwd_last_set],
+      ["Треб. смена пароля", a.must_change_password],
+      ["Пароль просрочен", a.password_expired],
+      ["Бессрочный пароль", a.password_never_expires],
+      ["Пароль не требуется", a.password_not_required],
+      ["Запрет смены пароля", a.cannot_change_password],
+    ]);
+    // Срок действия
+    h += "<div class=\"ucard-ad-section-label\">Срок действия</div>";
+    h += renderFieldsTable([
+      ["Срок УЗ", a.account_expires],
+      ["Дата окончания", a.account_expiration_date],
+    ]);
+    // Активность
+    h += "<div class=\"ucard-ad-section-label\">Активность</div>";
+    h += renderFieldsTable([
+      ["Последний вход", a.last_logon_date],
+      ["Посл. вход (timestamp)", a.last_logon_timestamp],
+      ["Кол-во входов", a.logon_count],
+      ["Посл. ошибка пароля", a.last_bad_password_attempt],
+      ["Кол-во ошибок", a.bad_logon_count],
+    ]);
+    // Жизненный цикл
+    h += "<div class=\"ucard-ad-section-label\">Жизненный цикл</div>";
+    h += renderFieldsTable([
+      ["Создана", a.created_date], ["Изменена", a.modified_date],
+      ["whenCreated", a.when_created], ["whenChanged", a.when_changed],
+      ["Дата выгрузки", a.exported_at],
+    ]);
+    // Безопасность
+    h += "<div class=\"ucard-ad-section-label\">Безопасность</div>";
+    h += renderFieldsTable([
+      ["Делегирование", a.trusted_for_delegation],
+      ["Протокольный переход", a.trusted_to_auth_for_delegation],
+      ["Запрет делегирования", a.account_not_delegated],
+      ["Без Kerberos Pre-Auth", a.does_not_require_preauth],
+      ["Обратимое шифрование", a.allow_reversible_password_encryption],
+      ["Только смарт-карта", a.smartcard_logon_required],
+      ["Защита от удаления", a.protected_from_accidental_deletion],
+      ["UAC", a.user_account_control],
+      ["SPN", a.service_principal_names],
+    ]);
+    // Идентификаторы
+    h += "<div class=\"ucard-ad-section-label\">Идентификаторы</div>";
+    h += renderFieldsTable([
+      ["ObjectGUID", a.object_guid], ["SID", a.sid],
+      ["CanonicalName", a.canonical_name],
+      ["OU", { html: renderOuLink(a.distinguished_name, a.ad_source) }],
+      ["StaffUUID", a.staff_uuid],
+    ]);
+    // Профиль
+    h += "<div class=\"ucard-ad-section-label\">Профиль</div>";
+    h += renderFieldsTable([
+      ["Рабочие станции", a.logon_workstations],
+      ["Диск", a.home_drive], ["Дом. каталог", a.home_directory],
+      ["Профиль", a.profile_path], ["Скрипт", a.script_path],
+    ]);
+    // Связи
+    h += "<div class=\"ucard-ad-section-label\">Связи</div>";
+    h += renderFieldsTable([
+      ["Группы", { html: renderGroupLinks(a.groups, a.ad_source) }],
+      ["Подчинённые", a.direct_reports],
+      ["Управляемые объекты", a.managed_objects],
+      ["Основная группа", a.primary_group],
+    ]);
+    // Прочее
+    h += "<div class=\"ucard-ad-section-label\">Прочее</div>";
+    h += renderFieldsTable([
+      ["Инфо", a.info],
+    ]);
+    return h;
   }
 
   function renderGroupLinks(groupsStr, adSource) {

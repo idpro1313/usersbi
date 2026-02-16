@@ -93,33 +93,79 @@ AD_LDAP_USE_SSL = os.getenv("AD_LDAP_USE_SSL", "false").lower() in ("true", "1",
 # Ключ = внутреннее имя поля, значение = имя колонки в файле (основное)
 # ======================================================================
 
-# AD: файл All_Uers_all_domain_AD.xlsx
-# Фактические колонки: DisplayName, mail, samaccountname, title, manager,
-#   enabled, distinguishedName, company, department, mobile, l,
-#   telephoneNumber, employeeNumber, StaffUUID, info, PasswordLastSet,
-#   groups, expiryDate
+# AD: CSV-выгрузка Export-ADUsers.ps1 (разделитель «;», UTF-8 с BOM)
 AD_COLUMNS = {
+    # --- Основные ---
     "login": "samaccountname",
     "domain": "",                          # домен извлекается из distinguishedName
-    "enabled": "enabled",
-    "password_last_set": "PasswordLastSet",
-    "account_expires": "expiryDate",
+    "enabled": "Enabled",
+    "display_name": "DisplayName",
+    "given_name": "GivenName",
+    "surname_ad": "Surname",
     "email": "mail",
+    "upn": "UserPrincipalName",
     "phone": "telephoneNumber",
     "mobile": "mobile",
-    "display_name": "DisplayName",
-    "staff_uuid": "StaffUUID",
-    # --- все остальные поля из файла ---
     "title": "title",
     "manager": "manager",
     "distinguished_name": "distinguishedName",
     "company": "company",
     "department": "department",
-    "location": "l",
+    "description": "Description",
+    "employee_type": "employeeType",
     "employee_number": "employeeNumber",
+    "location": "l",
+    "street_address": "StreetAddress",
+    "staff_uuid": "StaffUUID",
     "info": "info",
-    "must_change_password": "MustChangePassword",
-    "groups": "groups",
+    # --- Пароль и сроки ---
+    "password_last_set": "PasswordLastSet",
+    "pwd_last_set": "pwdLastSet",
+    "password_expired": "PasswordExpired",
+    "password_never_expires": "PasswordNeverExpires",
+    "password_not_required": "PasswordNotRequired",
+    "cannot_change_password": "CannotChangePassword",
+    "account_expiration_date": "AccountExpirationDate",
+    "account_expires": "accountExpires",
+    # --- Аудит активности ---
+    "last_logon_date": "LastLogonDate",
+    "last_logon_timestamp": "lastLogonTimestamp",
+    "logon_count": "logonCount",
+    "last_bad_password_attempt": "LastBadPasswordAttempt",
+    "bad_logon_count": "BadLogonCount",
+    "locked_out": "LockedOut",
+    # --- Жизненный цикл ---
+    "created_date": "Created",
+    "modified_date": "Modified",
+    "when_created": "whenCreated",
+    "when_changed": "whenChanged",
+    "exported_at": "ExportedAt",
+    # --- Безопасность ---
+    "trusted_for_delegation": "TrustedForDelegation",
+    "trusted_to_auth_for_delegation": "TrustedToAuthForDelegation",
+    "account_not_delegated": "AccountNotDelegated",
+    "does_not_require_preauth": "DoesNotRequirePreAuth",
+    "allow_reversible_password_encryption": "AllowReversiblePasswordEncryption",
+    "smartcard_logon_required": "SmartcardLogonRequired",
+    "protected_from_accidental_deletion": "ProtectedFromAccidentalDeletion",
+    "user_account_control": "userAccountControl",
+    "service_principal_names": "ServicePrincipalNames",
+    "account_lockout_time": "AccountLockoutTime",
+    # --- Идентификаторы ---
+    "object_guid": "ObjectGUID",
+    "sid": "SID",
+    "canonical_name": "CanonicalName",
+    # --- Профиль и ограничения ---
+    "logon_workstations": "LogonWorkstations",
+    "home_drive": "HomeDrive",
+    "home_directory": "HomeDirectory",
+    "profile_path": "ProfilePath",
+    "script_path": "ScriptPath",
+    # --- Связи ---
+    "groups": "memberOf",
+    "direct_reports": "directReports",
+    "managed_objects": "managedObjects",
+    "primary_group": "PrimaryGroup",
 }
 
 # MFA: файл multifactor user.csv (разделитель ;)

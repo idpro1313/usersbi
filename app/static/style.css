@@ -1037,3 +1037,18 @@ html, body {
 .dup-group-alt {
   background: var(--hover-bg);
 }
+
+/* ─── Секции внутри карточки AD ─── */
+.ucard-ad-section-label {
+  margin: 0.6rem 0 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.15rem;
+}
+.ucard-ad-section-label:first-child {
+  margin-top: 0;
+}
