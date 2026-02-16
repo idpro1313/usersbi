@@ -1,34 +1,40 @@
-/* ─── Светлая тема (по умолчанию) ─── */
+/* ─── Шрифты Девелоники ─── */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Finlandica:wght@400;500;600;700&display=swap');
+
+/* ─── Светлая тема (по умолчанию) — стиль Девелоники ─── */
 :root {
-  --bg: #f5f6f8;
+  --bg: #f2f5f8;
   --surface: #ffffff;
-  --border: #d0d7de;
-  --text: #1f2328;
-  --muted: #656d76;
-  --accent: #0969da;
-  --success: #1a7f37;
-  --warn: #9a6700;
-  --danger: #cf222e;
-  --hover-bg: rgba(9, 105, 218, 0.07);
-  --inactive-color: #999;
-  --radius: 8px;
-  --font: "Segoe UI", system-ui, sans-serif;
+  --border: #c5d0dc;
+  --text: #495561;
+  --muted: #748597;
+  --accent: #59AFFF;
+  --accent-dark: #0A5AA4;
+  --success: #2da44e;
+  --warn: #FAB600;
+  --danger: #BA4458;
+  --hover-bg: rgba(89, 175, 255, 0.08);
+  --inactive-color: #A5BBD1;
+  --radius: 10px;
+  --font: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-accent: "Finlandica", "IBM Plex Sans", sans-serif;
 }
 
 /* ─── Тёмная тема (системная/браузерная) ─── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0f1419;
-    --surface: #1a2332;
-    --border: #2d3a4f;
-    --text: #e6edf3;
-    --muted: #8b949e;
-    --accent: #58a6ff;
+    --bg: #0c1219;
+    --surface: #151e2b;
+    --border: #263044;
+    --text: #d8e2ec;
+    --muted: #8b9bb0;
+    --accent: #59AFFF;
+    --accent-dark: #94CBFF;
     --success: #3fb950;
-    --warn: #d29922;
-    --danger: #f85149;
-    --hover-bg: rgba(88, 166, 255, 0.08);
-    --inactive-color: #888;
+    --warn: #FAB600;
+    --danger: #e8596e;
+    --hover-bg: rgba(89, 175, 255, 0.10);
+    --inactive-color: #5c6d80;
   }
 }
 
@@ -70,8 +76,9 @@ html, body {
 }
 
 .main-nav-brand {
-  font-weight: 700;
-  font-size: 1rem;
+  font-weight: 600;
+  font-size: 1.05rem;
+  font-family: var(--font-accent);
   color: var(--accent);
   letter-spacing: -0.02em;
   white-space: nowrap;
@@ -121,6 +128,7 @@ html, body {
   margin: 0 0 0.25rem 0;
   font-size: 1.3rem;
   font-weight: 600;
+  font-family: var(--font-accent);
 }
 
 .page-subtitle {
@@ -177,10 +185,11 @@ html, body {
   background: var(--accent);
   color: #fff;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--radius);
   cursor: pointer;
   font-size: 0.8rem;
   font-family: inherit;
+  transition: filter 0.15s;
 }
 
 .btn:hover { filter: brightness(1.1); }
@@ -219,16 +228,20 @@ html, body {
   min-width: 30px;
   min-height: 30px;
   line-height: 1;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
   font-family: inherit;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.btn-icon:hover { background: var(--hover-bg); }
+.btn-icon:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--hover-bg);
+}
 
 .btn-icon svg {
   display: block;
@@ -303,8 +316,9 @@ html, body {
 .table-toolbar h2 {
   margin: 0;
   font-size: 1rem;
-  color: var(--muted);
-  font-weight: 500;
+  color: var(--text);
+  font-weight: 600;
+  font-family: var(--font-accent);
 }
 
 .toolbar-right {
@@ -316,11 +330,17 @@ html, body {
 .filter-wrap input {
   padding: 0.3rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--bg);
   color: var(--text);
   font-size: 0.8rem;
   width: 200px;
+  transition: border-color 0.15s;
+}
+
+.filter-wrap input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .filter-wrap input::placeholder { color: var(--muted); }
@@ -482,6 +502,12 @@ html, body {
   color: var(--inactive-color);
 }
 
+/* Сервисные УЗ — курсив, приглушённый стиль */
+.uz-service td {
+  font-style: italic;
+  opacity: 0.75;
+}
+
 .muted-text {
   color: var(--muted);
   font-size: 0.8rem;
@@ -518,12 +544,18 @@ html, body {
   width: 100%;
   padding: 0.35rem 0.6rem;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 8px;
   background: var(--bg);
   color: var(--text);
   font-size: 0.8rem;
   font-family: inherit;
   box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.sidebar-search input:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .sidebar-search input::placeholder { color: var(--muted); }
@@ -631,6 +663,7 @@ html, body {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
+  font-family: var(--font-accent);
 }
 
 .groups-count {
@@ -806,6 +839,7 @@ html, body {
   margin: 0;
   font-size: 1.3rem;
   font-weight: 600;
+  font-family: var(--font-accent);
   color: var(--text);
 }
 

@@ -1,13 +1,26 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import Session
 from app.database import ADRecord, MFARecord, PeopleRecord
-from app.config import AD_SOURCE_LABELS
+from app.config import AD_SOURCE_LABELS, AD_USER_OU
 from app.utils import norm, norm_phone, norm_email, norm_key_login, norm_key_uuid, enabled_str
 
 
+def _account_type(ad_source: str, dn: str) -> str:
+    """Определяет тип УЗ: Пользователь или Сервис по корневой OU."""
+    user_ou = AD_USER_OU.get(ad_source, "")
+    if not user_ou or not dn:
+        return ""
+    # Проверяем, содержит ли DN пользовательскую OU (без учёта регистра)
+    if user_ou.lower() in dn.lower():
+        return "Пользователь"
+    return "Сервис"
+
+
 def _to_ad(r):
+    ad_source = norm(r.ad_source)
+    dn = norm(r.distinguished_name)
     return {
-        "ad_source": norm(r.ad_source),
+        "ad_source": ad_source,
         "domain": norm(r.domain),
         "login": norm(r.login),
         "enabled": norm(r.enabled),
@@ -18,6 +31,7 @@ def _to_ad(r):
         "mobile_ad": norm_phone(r.mobile),
         "fio_ad": norm(r.display_name),
         "staff_uuid": norm(r.staff_uuid),
+        "account_type": _account_type(ad_source, dn),
     }
 
 
@@ -92,6 +106,7 @@ def _build_result_row(r, mfa, people, has_mfa, has_people, remarks):
 
     return {
         "source": AD_SOURCE_LABELS.get(r.get("ad_source", ""), "AD"),
+        "account_type": r.get("account_type", ""),
         "domain": r["domain"],
         "login": r["login"],
         "uz_active": enabled_str(r["enabled"]),
@@ -152,6 +167,7 @@ def build_consolidated(db: Session) -> list[dict]:
             mfa_remarks.append("Нет в кадрах")
         result.append({
             "source": "MFA",
+            "account_type": "",
             "domain": "НЕТ УЗ",
             "login": r["identity"],
             "uz_active": "НЕТ УЗ",
@@ -181,6 +197,7 @@ def build_consolidated(db: Session) -> list[dict]:
             continue
         result.append({
             "source": "Кадры",
+            "account_type": "",
             "domain": "НЕТ УЗ",
             "login": "НЕТ УЗ",
             "uz_active": "НЕТ УЗ",

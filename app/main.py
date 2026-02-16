@@ -5,7 +5,7 @@ from typing import Dict, Any
 
 import pandas as pd
 from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Body
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from pathlib import Path
@@ -50,6 +50,14 @@ if STATIC_DIR.exists():
 
 
 # ─── Страницы (HTML) ────────────────────────────────────────
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    ico = STATIC_DIR / "favicon.ico"
+    if ico.exists():
+        return FileResponse(str(ico), media_type="image/x-icon")
+    return HTMLResponse("", status_code=204)
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
@@ -249,7 +257,8 @@ async def export_xlsx(db: Session = Depends(get_db)):
         raise HTTPException(400, "Нет данных для выгрузки")
 
     col_map = {
-        "source": "Источник", "login": "Логин", "domain": "Домен",
+        "source": "Источник", "account_type": "Тип УЗ",
+        "login": "Логин", "domain": "Домен",
         "uz_active": "УЗ активна", "password_last_set": "Смена пароля",
         "account_expires": "Срок УЗ", "staff_uuid": "StaffUUID",
         "mfa_enabled": "Есть MFA", "mfa_created_at": "MFA подключен",

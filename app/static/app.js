@@ -6,6 +6,7 @@
   // ─── Колонки таблицы ───
   var COLUMNS = [
     { key: "source",             label: "Источник" },
+    { key: "account_type",       label: "Тип УЗ" },
     { key: "login",              label: "Логин" },
     { key: "domain",             label: "Домен" },
     { key: "uz_active",          label: "УЗ активна" },
@@ -278,7 +279,8 @@
       var row = filteredRows[i];
       var tr = document.createElement("tr");
       var inactive = row.uz_active === "Нет";
-      tr.className = rowClass(row.source) + (inactive ? " uz-inactive" : "");
+      var service = row.account_type === "Сервис";
+      tr.className = rowClass(row.source) + (inactive ? " uz-inactive" : "") + (service ? " uz-service" : "");
 
       var tdNum = document.createElement("td");
       tdNum.className = "col-num";
