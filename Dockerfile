@@ -1,7 +1,7 @@
 FROM node:20-slim AS frontend
 WORKDIR /build
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci
+COPY frontend/package.json ./
+RUN npm install
 COPY frontend/ ./
 ENV VITE_OUT_DIR=/frontend-dist
 RUN npm run build
