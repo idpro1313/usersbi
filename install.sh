@@ -19,11 +19,21 @@ echo "Проект: ${PROJECT_ROOT}"
 if [ "${1:-}" = "update" ]; then
   echo "Режим: обновление из GitHub"
   if [ -d .git ]; then
+    # Запоминаем текущий коммит
+    OLD_HEAD=$(git rev-parse HEAD)
     git pull
+    NEW_HEAD=$(git rev-parse HEAD)
+
+    if [ "$OLD_HEAD" = "$NEW_HEAD" ]; then
+      echo "Обновлений нет — контейнер не перезапускается."
+      exit 0
+    fi
+
+    echo "Обнаружены изменения (${OLD_HEAD:0:8} → ${NEW_HEAD:0:8}), пересборка..."
   else
     echo "Каталог .git не найден, обновление пропущено."
+    exit 0
   fi
-  echo "Пересборка контейнера (с кэшем слоёв)..."
   docker compose "${COMPOSE_OPTS[@]}" build
 else
   echo "Режим: установка / запуск"
