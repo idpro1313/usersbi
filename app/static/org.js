@@ -86,8 +86,7 @@
       var url = API + "/api/org/members?";
       if (company) url += "company=" + encodeURIComponent(company) + "&";
       if (department) url += "department=" + encodeURIComponent(department);
-      var r = await fetch(url);
-      var data = await r.json();
+      var data = await AppUtils.fetchJSON(url);
       cachedMembers = data.members || [];
       sortCol = null;
       sortDir = "asc";
@@ -252,8 +251,7 @@
   // ─── Загрузка дерева ───
   async function loadTree() {
     try {
-      var r = await fetch(API + "/api/org/tree");
-      var data = await r.json();
+      var data = await AppUtils.fetchJSON(API + "/api/org/tree");
       treeData = data.companies || [];
       renderTree();
     } catch (e) {

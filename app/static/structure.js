@@ -80,8 +80,7 @@
     tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Загрузка…</td></tr>";
 
     try {
-      var r = await fetch(API + "/api/structure/members?path=" + encodeURIComponent(path) + "&domain=" + encodeURIComponent(domain));
-      var data = await r.json();
+      var data = await AppUtils.fetchJSON(API + "/api/structure/members?path=" + encodeURIComponent(path) + "&domain=" + encodeURIComponent(domain));
       cachedMembers = data.members || [];
       ouCount.textContent = data.count + " уч. (" + data.city + ")";
       sortCol = null;
@@ -247,8 +246,7 @@
 
   async function loadTree() {
     try {
-      var r = await fetch(API + "/api/structure/tree");
-      var data = await r.json();
+      var data = await AppUtils.fetchJSON(API + "/api/structure/tree");
       treeData = data.domains || [];
       renderTree();
     } catch (e) {

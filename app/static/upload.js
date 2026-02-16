@@ -89,8 +89,7 @@
   // ─── Определение режима: LDAP или файлы ───
   async function initMode() {
     try {
-      var r = await fetch(API + "/api/sync/status");
-      var data = await r.json();
+      var data = await AppUtils.fetchJSON(API + "/api/sync/status");
       if (data.available && data.domains) {
         var anyConfigured = false;
         adDomains.forEach(function (key) {
@@ -146,8 +145,7 @@
   var statsEl = document.getElementById("stats");
   async function loadStats() {
     try {
-      var r = await fetch(API + "/api/stats");
-      var s = await r.json();
+      var s = await AppUtils.fetchJSON(API + "/api/stats");
       var parts = [];
       if (s.ad_domains) {
         var adParts = [];

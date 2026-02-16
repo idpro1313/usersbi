@@ -30,12 +30,10 @@ class ADRecord(Base):
     domain = Column(String(255), default="")
     login = Column(String(255), default="", index=True)
     enabled = Column(String(20), default="")
-    password_last_set = Column(String(50), default="")
-    account_expires = Column(String(50), default="")
-    email = Column(String(255), default="")
+    email = Column(String(255), default="", index=True)
     phone = Column(String(100), default="")
     mobile = Column(String(100), default="")
-    display_name = Column(String(255), default="")
+    display_name = Column(String(255), default="", index=True)
     staff_uuid = Column(String(100), default="", index=True)
     # --- дополнительные основные ---
     given_name = Column(String(255), default="")
@@ -43,9 +41,9 @@ class ADRecord(Base):
     upn = Column(String(255), default="")
     title = Column(String(255), default="")
     manager = Column(Text, default="")
-    distinguished_name = Column(Text, default="")
-    company = Column(String(255), default="")
-    department = Column(String(255), default="")
+    distinguished_name = Column(Text, default="", index=True)
+    company = Column(String(255), default="", index=True)
+    department = Column(String(255), default="", index=True)
     description = Column(Text, default="")
     employee_type = Column(String(100), default="")
     location = Column(String(255), default="")
@@ -53,27 +51,29 @@ class ADRecord(Base):
     employee_number = Column(String(100), default="")
     info = Column(Text, default="")
     must_change_password = Column(String(20), default="")
-    groups = Column(Text, default="")
-    # --- пароль и сроки ---
+    groups = Column(Text, default="", index=True)
+    # --- пароль и сроки (DateTime) ---
+    password_last_set = Column(DateTime, nullable=True)
     pwd_last_set = Column(String(50), default="")
     password_expired = Column(String(20), default="")
     password_never_expires = Column(String(20), default="")
     password_not_required = Column(String(20), default="")
     cannot_change_password = Column(String(20), default="")
-    account_expiration_date = Column(String(50), default="")
-    # --- аудит активности ---
-    last_logon_date = Column(String(50), default="")
+    account_expires = Column(String(50), default="")
+    account_expiration_date = Column(DateTime, nullable=True)
+    # --- аудит активности (DateTime) ---
+    last_logon_date = Column(DateTime, nullable=True)
     last_logon_timestamp = Column(String(50), default="")
     logon_count = Column(String(20), default="")
-    last_bad_password_attempt = Column(String(50), default="")
+    last_bad_password_attempt = Column(DateTime, nullable=True)
     bad_logon_count = Column(String(20), default="")
     locked_out = Column(String(20), default="")
-    # --- жизненный цикл ---
-    created_date = Column(String(50), default="")
-    modified_date = Column(String(50), default="")
-    when_created = Column(String(50), default="")
-    when_changed = Column(String(50), default="")
-    exported_at = Column(String(50), default="")
+    # --- жизненный цикл (DateTime) ---
+    created_date = Column(DateTime, nullable=True)
+    modified_date = Column(DateTime, nullable=True)
+    when_created = Column(DateTime, nullable=True)
+    when_changed = Column(DateTime, nullable=True)
+    exported_at = Column(DateTime, nullable=True)
     # --- безопасность ---
     trusted_for_delegation = Column(String(20), default="")
     trusted_to_auth_for_delegation = Column(String(20), default="")
@@ -84,7 +84,7 @@ class ADRecord(Base):
     protected_from_accidental_deletion = Column(String(20), default="")
     user_account_control = Column(String(20), default="")
     service_principal_names = Column(Text, default="")
-    account_lockout_time = Column(String(50), default="")
+    account_lockout_time = Column(DateTime, nullable=True)
     # --- идентификаторы ---
     object_guid = Column(String(100), default="")
     sid = Column(String(200), default="")
@@ -110,8 +110,8 @@ class MFARecord(Base):
     email = Column(String(255), default="")
     name = Column(String(255), default="")
     phones = Column(String(255), default="")
-    last_login = Column(String(50), default="")
-    created_at = Column(String(50), default="")
+    last_login = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=True)
     status = Column(String(50), default="")
     is_enrolled = Column(String(20), default="")
     authenticators = Column(String(255), default="")
@@ -149,13 +149,19 @@ def _migrate_table(insp, table_name, model_class):
         if col.name not in existing:
             if not _SAFE_IDENTIFIER.match(col.name):
                 raise ValueError(f"Недопустимое имя колонки: {col.name}")
-            col_type = "TEXT"
-            if isinstance(col.type, String):
+            if isinstance(col.type, DateTime):
+                col_type = "TIMESTAMP"
+                default = "NULL"
+            elif isinstance(col.type, String):
                 length = getattr(col.type, "length", None)
                 col_type = f"VARCHAR({length})" if length else "TEXT"
+                default = "''"
             elif isinstance(col.type, Integer):
                 col_type = "INTEGER"
-            default = "''" if col_type != "INTEGER" else "0"
+                default = "0"
+            else:
+                col_type = "TEXT"
+                default = "''"
             with engine.begin() as conn:
                 conn.execute(text(
                     f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {col_type} DEFAULT {default}'

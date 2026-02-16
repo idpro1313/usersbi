@@ -6,7 +6,7 @@ import threading
 
 import pandas as pd
 from app.config import AD_COLUMNS, MFA_COLUMNS, PEOPLE_COLUMNS
-from app.utils import norm, norm_phone, safe_date
+from app.utils import norm, norm_phone, safe_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -141,28 +141,28 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "",
                 "staff_uuid": norm(r.get("staff_uuid", "")),
                 "info": norm(r.get("info", "")),
                 # --- пароль и сроки ---
-                "password_last_set": safe_date(r.get("password_last_set")),
+                "password_last_set": safe_datetime(r.get("password_last_set")),
                 "pwd_last_set": pwd_ts,
                 "must_change_password": "Да" if not pwd_ts else "Нет",
                 "password_expired": norm(r.get("password_expired", "")),
                 "password_never_expires": norm(r.get("password_never_expires", "")),
                 "password_not_required": norm(r.get("password_not_required", "")),
                 "cannot_change_password": norm(r.get("cannot_change_password", "")),
-                "account_expiration_date": safe_date(r.get("account_expiration_date")),
+                "account_expiration_date": safe_datetime(r.get("account_expiration_date")),
                 "account_expires": norm(r.get("account_expires", "")),
                 # --- аудит активности ---
-                "last_logon_date": safe_date(r.get("last_logon_date")),
+                "last_logon_date": safe_datetime(r.get("last_logon_date")),
                 "last_logon_timestamp": norm(r.get("last_logon_timestamp", "")),
                 "logon_count": norm(r.get("logon_count", "")),
-                "last_bad_password_attempt": safe_date(r.get("last_bad_password_attempt")),
+                "last_bad_password_attempt": safe_datetime(r.get("last_bad_password_attempt")),
                 "bad_logon_count": norm(r.get("bad_logon_count", "")),
                 "locked_out": norm(r.get("locked_out", "")),
                 # --- жизненный цикл ---
-                "created_date": safe_date(r.get("created_date")),
-                "modified_date": safe_date(r.get("modified_date")),
-                "when_created": safe_date(r.get("when_created")),
-                "when_changed": safe_date(r.get("when_changed")),
-                "exported_at": norm(r.get("exported_at", "")),
+                "created_date": safe_datetime(r.get("created_date")),
+                "modified_date": safe_datetime(r.get("modified_date")),
+                "when_created": safe_datetime(r.get("when_created")),
+                "when_changed": safe_datetime(r.get("when_changed")),
+                "exported_at": safe_datetime(r.get("exported_at")),
                 # --- безопасность ---
                 "trusted_for_delegation": norm(r.get("trusted_for_delegation", "")),
                 "trusted_to_auth_for_delegation": norm(r.get("trusted_to_auth_for_delegation", "")),
@@ -173,7 +173,7 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "",
                 "protected_from_accidental_deletion": norm(r.get("protected_from_accidental_deletion", "")),
                 "user_account_control": norm(r.get("user_account_control", "")),
                 "service_principal_names": norm(r.get("service_principal_names", "")),
-                "account_lockout_time": safe_date(r.get("account_lockout_time")),
+                "account_lockout_time": safe_datetime(r.get("account_lockout_time")),
                 # --- идентификаторы ---
                 "object_guid": norm(r.get("object_guid", "")),
                 "sid": norm(r.get("sid", "")),
@@ -192,6 +192,7 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "",
             })
         return rows, None, skipped
     except Exception as e:
+        logger.error("Ошибка парсинга AD: %s", e, exc_info=True)
         return [], str(e), 0
 
 
@@ -211,8 +212,8 @@ def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:
                 "email": norm(r.get("email", "")),
                 "name": norm(r.get("name", "")),
                 "phones": norm_phone(r.get("phones", "")),
-                "last_login": norm(r.get("last_login", "")),
-                "created_at": norm(r.get("created_at", "")),
+                "last_login": safe_datetime(r.get("last_login")),
+                "created_at": safe_datetime(r.get("created_at")),
                 "status": norm(r.get("status", "")),
                 "is_enrolled": norm(r.get("is_enrolled", "")),
                 "authenticators": norm(r.get("authenticators", "")),
@@ -223,6 +224,7 @@ def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:
             })
         return rows, None
     except Exception as e:
+        logger.error("Ошибка парсинга MFA: %s", e, exc_info=True)
         return [], str(e)
 
 
@@ -251,4 +253,5 @@ def parse_people(content: bytes, filename: str) -> tuple[list[dict], str | None]
             })
         return rows, None
     except Exception as e:
+        logger.error("Ошибка парсинга People: %s", e, exc_info=True)
         return [], str(e)

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord, MFARecord, PeopleRecord
 from app.config import AD_LABELS, AD_SOURCE_LABELS
-from app.utils import norm, norm_email, enabled_str
+from app.utils import norm, norm_email, enabled_str, fmt_date, fmt_datetime
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -221,7 +221,7 @@ def _build_ad_cards(ad_recs, logins):
             "info": norm(r.info),
             "enabled": enabled_str(r.enabled),
             # --- пароль ---
-            "password_last_set": norm(r.password_last_set),
+            "password_last_set": fmt_date(r.password_last_set),
             "pwd_last_set": norm(getattr(r, "pwd_last_set", "") or ""),
             "must_change_password": norm(r.must_change_password),
             "password_expired": norm(getattr(r, "password_expired", "") or ""),
@@ -229,21 +229,21 @@ def _build_ad_cards(ad_recs, logins):
             "password_not_required": norm(getattr(r, "password_not_required", "") or ""),
             "cannot_change_password": norm(getattr(r, "cannot_change_password", "") or ""),
             # --- сроки ---
-            "account_expiration_date": norm(getattr(r, "account_expiration_date", "") or ""),
+            "account_expiration_date": fmt_date(getattr(r, "account_expiration_date", None)),
             "account_expires": norm(r.account_expires),
             # --- аудит активности ---
-            "last_logon_date": norm(getattr(r, "last_logon_date", "") or ""),
+            "last_logon_date": fmt_date(getattr(r, "last_logon_date", None)),
             "last_logon_timestamp": norm(getattr(r, "last_logon_timestamp", "") or ""),
             "logon_count": norm(getattr(r, "logon_count", "") or ""),
-            "last_bad_password_attempt": norm(getattr(r, "last_bad_password_attempt", "") or ""),
+            "last_bad_password_attempt": fmt_date(getattr(r, "last_bad_password_attempt", None)),
             "bad_logon_count": norm(getattr(r, "bad_logon_count", "") or ""),
             "locked_out": norm(getattr(r, "locked_out", "") or ""),
             # --- жизненный цикл ---
-            "created_date": norm(getattr(r, "created_date", "") or ""),
-            "modified_date": norm(getattr(r, "modified_date", "") or ""),
-            "when_created": norm(getattr(r, "when_created", "") or ""),
-            "when_changed": norm(getattr(r, "when_changed", "") or ""),
-            "exported_at": norm(getattr(r, "exported_at", "") or ""),
+            "created_date": fmt_date(getattr(r, "created_date", None)),
+            "modified_date": fmt_date(getattr(r, "modified_date", None)),
+            "when_created": fmt_date(getattr(r, "when_created", None)),
+            "when_changed": fmt_date(getattr(r, "when_changed", None)),
+            "exported_at": fmt_datetime(getattr(r, "exported_at", None)),
             # --- безопасность ---
             "trusted_for_delegation": norm(getattr(r, "trusted_for_delegation", "") or ""),
             "trusted_to_auth_for_delegation": norm(getattr(r, "trusted_to_auth_for_delegation", "") or ""),
@@ -254,7 +254,7 @@ def _build_ad_cards(ad_recs, logins):
             "protected_from_accidental_deletion": norm(getattr(r, "protected_from_accidental_deletion", "") or ""),
             "user_account_control": norm(getattr(r, "user_account_control", "") or ""),
             "service_principal_names": norm(getattr(r, "service_principal_names", "") or ""),
-            "account_lockout_time": norm(getattr(r, "account_lockout_time", "") or ""),
+            "account_lockout_time": fmt_datetime(getattr(r, "account_lockout_time", None)),
             # --- идентификаторы ---
             "object_guid": norm(getattr(r, "object_guid", "") or ""),
             "sid": norm(getattr(r, "sid", "") or ""),
@@ -304,8 +304,8 @@ def _fetch_mfa_cards(logins: list[str], db: Session):
             "status": norm(r.status),
             "is_enrolled": norm(r.is_enrolled),
             "authenticators": norm(r.authenticators),
-            "last_login": norm(r.last_login),
-            "created_at": norm(r.created_at),
+            "last_login": fmt_datetime(r.last_login),
+            "created_at": fmt_datetime(r.created_at),
             "mfa_groups": norm(r.mfa_groups),
             "ldap": norm(r.ldap),
         })

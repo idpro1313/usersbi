@@ -15,25 +15,18 @@ router = APIRouter(prefix="/api/security", tags=["security"])
 INACTIVE_DAYS = 90
 STALE_PASSWORD_DAYS = 180
 
-# ─── Парсер дат из разных форматов CSV ───────────────────────
-
-_DATE_FORMATS = [
-    "%d.%m.%Y %H:%M:%S",   # 13.02.2026 15:53:29
-    "%d.%m.%Y",             # 13.02.2026
-    "%m/%d/%Y %H:%M:%S",   # 02/13/2026 15:53:29
-    "%m/%d/%Y",             # 02/13/2026
-]
-
-
-def _parse_date(val: str) -> datetime | None:
-    """Парсит строковую дату в datetime. Возвращает None если не удалось."""
+def _to_dt(val) -> datetime | None:
+    """Извлекает datetime из значения поля. Поддерживает datetime и строки."""
+    if val is None:
+        return None
+    if isinstance(val, datetime):
+        return val
     s = norm(val)
     if not s:
         return None
-    s = s.strip()
-    for fmt in _DATE_FORMATS:
+    for fmt in ("%d.%m.%Y %H:%M:%S", "%d.%m.%Y", "%m/%d/%Y %H:%M:%S", "%m/%d/%Y"):
         try:
-            return datetime.strptime(s, fmt)
+            return datetime.strptime(s.strip(), fmt)
         except ValueError:
             continue
     return None
@@ -130,9 +123,9 @@ def _check_inactive_accounts(records: list[ADRecord], days: int) -> list[dict]:
     for r in records:
         if not _is_enabled(r):
             continue
-        dt = _parse_date(getattr(r, "last_logon_date", ""))
+        dt = _to_dt(getattr(r, "last_logon_date", None))
         if dt is None:
-            dt = _parse_date(getattr(r, "last_logon_timestamp", ""))
+            dt = _to_dt(getattr(r, "last_logon_timestamp", None))
         if dt is None:
             item = _user_link(r)
             item["last_logon"] = "никогда"
@@ -153,9 +146,9 @@ def _check_stale_passwords(records: list[ADRecord], days: int) -> list[dict]:
     for r in records:
         if not _is_enabled(r):
             continue
-        dt = _parse_date(getattr(r, "pwd_last_set", ""))
+        dt = _to_dt(r.password_last_set)
         if dt is None:
-            dt = _parse_date(r.password_last_set)
+            dt = _to_dt(getattr(r, "pwd_last_set", None))
         if dt is None:
             continue
         if dt < cutoff:

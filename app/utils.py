@@ -1,7 +1,20 @@
 # -*- coding: utf-8 -*-
 """Общие утилиты, используемые во всех модулях бэкенда."""
 import re
+from datetime import datetime
+
 import pandas as pd
+
+# Форматы дат, распознаваемые парсером
+_DATE_FORMATS = [
+    "%d.%m.%Y %H:%M:%S",   # 13.02.2026 15:53:29
+    "%d.%m.%Y %H:%M",      # 13.02.2026 15:53
+    "%d.%m.%Y",             # 13.02.2026
+    "%m/%d/%Y %H:%M:%S",   # 02/13/2026 15:53:29
+    "%m/%d/%Y",             # 02/13/2026
+    "%Y-%m-%d %H:%M:%S",   # 2026-02-13 15:53:29
+    "%Y-%m-%d",             # 2026-02-13
+]
 
 
 def norm(s):
@@ -73,19 +86,49 @@ def enabled_str(val) -> str:
     return norm(val)
 
 
-def safe_date(x) -> str:
-    """Нормализация значения даты в строку DD.MM.YYYY."""
+def safe_datetime(x) -> datetime | None:
+    """Парсит значение даты в datetime. Возвращает None если не удалось."""
+    if x is None:
+        return None
+    if isinstance(x, datetime):
+        return x
+    if isinstance(x, pd.Timestamp):
+        return x.to_pydatetime()
     if pd.isna(x):
-        return ""
-    if hasattr(x, "strftime"):
-        return x.strftime("%d.%m.%Y")
+        return None
     s = str(x).strip()
-    if not s or s.lower() in ("nat", "nan", "none"):
+    if not s or s.lower() in ("nat", "nan", "none", "", "never"):
+        return None
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def fmt_date(dt) -> str:
+    """Форматирует datetime → 'DD.MM.YYYY' или '' если None."""
+    if dt is None:
         return ""
-    if s.lower() == "never":
-        return "never"
-    s = re.split(r"\s+", s)[0]
-    return s
+    if isinstance(dt, datetime):
+        return dt.strftime("%d.%m.%Y")
+    if isinstance(dt, pd.Timestamp):
+        return dt.strftime("%d.%m.%Y")
+    return norm(dt)
+
+
+def fmt_datetime(dt) -> str:
+    """Форматирует datetime → 'DD.MM.YYYY HH:MM:SS' или '' если None."""
+    if dt is None:
+        return ""
+    if isinstance(dt, datetime):
+        if dt.hour == 0 and dt.minute == 0 and dt.second == 0:
+            return dt.strftime("%d.%m.%Y")
+        return dt.strftime("%d.%m.%Y %H:%M:%S")
+    if isinstance(dt, pd.Timestamp):
+        return dt.strftime("%d.%m.%Y %H:%M:%S")
+    return norm(dt)
 
 
 def build_member_dict(r, *, include_location: bool = False, include_domain_label: str = "") -> dict:
@@ -98,7 +141,7 @@ def build_member_dict(r, *, include_location: bool = False, include_domain_label
         "display_name": norm(r.display_name),
         "email": norm(r.email),
         "enabled": enabled_str(r.enabled),
-        "password_last_set": norm(r.password_last_set),
+        "password_last_set": fmt_date(r.password_last_set),
         "title": norm(r.title),
         "department": norm(r.department),
         "company": norm(r.company),

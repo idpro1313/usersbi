@@ -171,16 +171,20 @@ async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session =
         raise HTTPException(400, f"В файле нет записей для домена {city_name} (отфильтровано {skipped} записей других доменов)")
 
     # Удаляем только записи этого домена
-    db.query(ADRecord).filter(ADRecord.ad_source == domain_key).delete()
-    db.query(Upload).filter(Upload.source == f"ad_{domain_key}").delete()
-    upload = Upload(source=f"ad_{domain_key}", filename=file.filename, row_count=len(rows))
-    db.add(upload)
-    db.flush()
-    for r in rows:
-        r["upload_id"] = upload.id
-        r["ad_source"] = domain_key
-    db.bulk_insert_mappings(ADRecord, rows)
-    db.commit()
+    try:
+        db.query(ADRecord).filter(ADRecord.ad_source == domain_key).delete()
+        db.query(Upload).filter(Upload.source == f"ad_{domain_key}").delete()
+        upload = Upload(source=f"ad_{domain_key}", filename=file.filename, row_count=len(rows))
+        db.add(upload)
+        db.flush()
+        for r in rows:
+            r["upload_id"] = upload.id
+            r["ad_source"] = domain_key
+        db.bulk_insert_mappings(ADRecord, rows)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     result = {"ok": True, "rows": len(rows), "filename": file.filename, "domain": city_name}
     if skipped > 0:
@@ -197,15 +201,19 @@ async def upload_mfa(file: UploadFile = File(...), db: Session = Depends(get_db)
     rows, err = parse_mfa(content, file.filename)
     if err:
         raise HTTPException(400, f"Ошибка разбора файла: {err}")
-    db.query(MFARecord).delete()
-    db.query(Upload).filter(Upload.source == "mfa").delete()
-    upload = Upload(source="mfa", filename=file.filename, row_count=len(rows))
-    db.add(upload)
-    db.flush()
-    for r in rows:
-        r["upload_id"] = upload.id
-    db.bulk_insert_mappings(MFARecord, rows)
-    db.commit()
+    try:
+        db.query(MFARecord).delete()
+        db.query(Upload).filter(Upload.source == "mfa").delete()
+        upload = Upload(source="mfa", filename=file.filename, row_count=len(rows))
+        db.add(upload)
+        db.flush()
+        for r in rows:
+            r["upload_id"] = upload.id
+        db.bulk_insert_mappings(MFARecord, rows)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return {"ok": True, "rows": len(rows), "filename": file.filename}
 
 
@@ -217,15 +225,19 @@ async def upload_people(file: UploadFile = File(...), db: Session = Depends(get_
     rows, err = parse_people(content, file.filename)
     if err:
         raise HTTPException(400, f"Ошибка разбора файла: {err}")
-    db.query(PeopleRecord).delete()
-    db.query(Upload).filter(Upload.source == "people").delete()
-    upload = Upload(source="people", filename=file.filename, row_count=len(rows))
-    db.add(upload)
-    db.flush()
-    for r in rows:
-        r["upload_id"] = upload.id
-    db.bulk_insert_mappings(PeopleRecord, rows)
-    db.commit()
+    try:
+        db.query(PeopleRecord).delete()
+        db.query(Upload).filter(Upload.source == "people").delete()
+        upload = Upload(source="people", filename=file.filename, row_count=len(rows))
+        db.add(upload)
+        db.flush()
+        for r in rows:
+            r["upload_id"] = upload.id
+        db.bulk_insert_mappings(PeopleRecord, rows)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return {"ok": True, "rows": len(rows), "filename": file.filename}
 
 
@@ -250,16 +262,20 @@ async def sync_ad_domain(domain_key: str, db: Session = Depends(get_db)):
     if not rows:
         raise HTTPException(400, f"Нет записей для домена {city_name}")
 
-    db.query(ADRecord).filter(ADRecord.ad_source == domain_key).delete()
-    db.query(Upload).filter(Upload.source == f"ad_{domain_key}").delete()
-    upload = Upload(source=f"ad_{domain_key}", filename=f"LDAP sync", row_count=len(rows))
-    db.add(upload)
-    db.flush()
-    for r in rows:
-        r["upload_id"] = upload.id
-        r["ad_source"] = domain_key
-    db.bulk_insert_mappings(ADRecord, rows)
-    db.commit()
+    try:
+        db.query(ADRecord).filter(ADRecord.ad_source == domain_key).delete()
+        db.query(Upload).filter(Upload.source == f"ad_{domain_key}").delete()
+        upload = Upload(source=f"ad_{domain_key}", filename="LDAP sync", row_count=len(rows))
+        db.add(upload)
+        db.flush()
+        for r in rows:
+            r["upload_id"] = upload.id
+            r["ad_source"] = domain_key
+        db.bulk_insert_mappings(ADRecord, rows)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
 
     return {"ok": True, "rows": len(rows), "domain": city_name, "source": "ldap"}
 
@@ -283,7 +299,7 @@ async def sync_ad_all(db: Session = Depends(get_db)):
 
         db.query(ADRecord).filter(ADRecord.ad_source == domain_key).delete()
         db.query(Upload).filter(Upload.source == f"ad_{domain_key}").delete()
-        upload = Upload(source=f"ad_{domain_key}", filename=f"LDAP sync", row_count=len(rows))
+        upload = Upload(source=f"ad_{domain_key}", filename="LDAP sync", row_count=len(rows))
         db.add(upload)
         db.flush()
         for r in rows:
@@ -293,7 +309,11 @@ async def sync_ad_all(db: Session = Depends(get_db)):
 
         results[domain_key] = {"city": city_name, "rows": len(rows)}
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return {"ok": not errors, "domains": results, "errors": errors}
 
 
@@ -342,11 +362,15 @@ async def clear_all(db: Session = Depends(get_db)):
     ad = db.query(ADRecord).count()
     mfa = db.query(MFARecord).count()
     people = db.query(PeopleRecord).count()
-    db.query(ADRecord).delete()
-    db.query(MFARecord).delete()
-    db.query(PeopleRecord).delete()
-    db.query(Upload).delete()
-    db.commit()
+    try:
+        db.query(ADRecord).delete()
+        db.query(MFARecord).delete()
+        db.query(PeopleRecord).delete()
+        db.query(Upload).delete()
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     return {"ok": True, "deleted": {"ad": ad, "mfa": mfa, "people": people}}
 
 

@@ -46,16 +46,15 @@ def is_available() -> dict:
     return {"available": True, "domains": domains}
 
 
-def _filetime_to_str(ft) -> str:
-    """Конвертирует Windows FILETIME (Int64) → DD.MM.YYYY."""
+def _filetime_to_dt(ft) -> datetime | None:
+    """Конвертирует Windows FILETIME (Int64) → datetime (naive UTC) или None."""
     if not ft or ft <= 0 or ft >= _NEVER_EXPIRES:
-        return ""
+        return None
     try:
         ts = (int(ft) - _FILETIME_UNIX_DIFF) / _FILETIME_SECOND
-        dt = datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=ts)
-        return dt.strftime("%d.%m.%Y")
+        return datetime(1970, 1, 1) + timedelta(seconds=ts)
     except (ValueError, OverflowError, OSError):
-        return ""
+        return None
 
 
 def _attr(entry, name, default=""):
@@ -144,35 +143,37 @@ def sync_domain(domain_key: str) -> tuple[list[dict], str | None]:
 
         logger.info("[LDAP %s] Подключено к %s:%d, search_base=%s", domain_key, server_addr, port, search_base)
 
-        conn.search(
-            search_base=search_base,
-            search_filter="(&(objectClass=user)(objectCategory=person))",
-            search_scope=SUBTREE,
-            attributes=_AD_ATTRS,
-            paged_size=1000,
-        )
-
-        entries = list(conn.entries)
-
-        # Пагинация: дочитываем оставшиеся страницы
-        cookie = conn.result.get("controls", {}).get(
-            "1.2.840.113556.1.4.319", {}
-        ).get("value", {}).get("cookie")
-        while cookie:
+        try:
             conn.search(
                 search_base=search_base,
                 search_filter="(&(objectClass=user)(objectCategory=person))",
                 search_scope=SUBTREE,
                 attributes=_AD_ATTRS,
                 paged_size=1000,
-                paged_cookie=cookie,
             )
-            entries.extend(conn.entries)
+
+            entries = list(conn.entries)
+
+            # Пагинация: дочитываем оставшиеся страницы
             cookie = conn.result.get("controls", {}).get(
                 "1.2.840.113556.1.4.319", {}
             ).get("value", {}).get("cookie")
+            while cookie:
+                conn.search(
+                    search_base=search_base,
+                    search_filter="(&(objectClass=user)(objectCategory=person))",
+                    search_scope=SUBTREE,
+                    attributes=_AD_ATTRS,
+                    paged_size=1000,
+                    paged_cookie=cookie,
+                )
+                entries.extend(conn.entries)
+                cookie = conn.result.get("controls", {}).get(
+                    "1.2.840.113556.1.4.319", {}
+                ).get("value", {}).get("cookie")
+        finally:
+            conn.unbind()
 
-        conn.unbind()
         logger.info("[LDAP %s] Получено записей: %d", domain_key, len(entries))
 
         rows = []
@@ -184,14 +185,16 @@ def sync_domain(domain_key: str) -> tuple[list[dict], str | None]:
             # pwdLastSet: 0 = требуется смена пароля
             pwd_raw = _attr_int(entry, "pwdLastSet")
             must_change = "Да" if pwd_raw == 0 else "Нет"
-            pwd_last_set = _filetime_to_str(pwd_raw) if pwd_raw > 0 else ""
+            pwd_last_set = _filetime_to_dt(pwd_raw)
 
             # accountExpires
             acc_raw = _attr_int(entry, "accountExpires")
             if acc_raw <= 0 or acc_raw >= _NEVER_EXPIRES:
                 account_expires = "never"
+                account_expiration_date = None
             else:
-                account_expires = _filetime_to_str(acc_raw) or "never"
+                account_expiration_date = _filetime_to_dt(acc_raw)
+                account_expires = account_expiration_date.strftime("%d.%m.%Y") if account_expiration_date else "never"
 
             # memberOf → groups
             groups = _groups_str(_attr_list(entry, "memberOf"))
@@ -203,6 +206,7 @@ def sync_domain(domain_key: str) -> tuple[list[dict], str | None]:
                 "password_last_set": pwd_last_set,
                 "must_change_password": must_change,
                 "account_expires": account_expires,
+                "account_expiration_date": account_expiration_date,
                 "email": norm(_attr(entry, "mail")),
                 "phone": norm_phone(_attr(entry, "telephoneNumber")),
                 "mobile": norm_phone(_attr(entry, "mobile")),

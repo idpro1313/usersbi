@@ -2,7 +2,7 @@
 from sqlalchemy.orm import Session
 from app.database import ADRecord, MFARecord, PeopleRecord
 from app.config import AD_SOURCE_LABELS, AD_ACCOUNT_TYPE_RULES
-from app.utils import norm, norm_phone, norm_email, norm_key_login, norm_key_uuid, enabled_str
+from app.utils import norm, norm_phone, norm_email, norm_key_login, norm_key_uuid, enabled_str, fmt_date, fmt_datetime
 
 
 def _account_type(ad_source: str, dn: str) -> str:
@@ -29,7 +29,7 @@ def _to_ad(r):
         "domain": norm(r.domain),
         "login": norm(r.login),
         "enabled": norm(r.enabled),
-        "password_last_set": norm(r.password_last_set),
+        "password_last_set": fmt_date(r.password_last_set),
         "must_change_password": norm(r.must_change_password),
         "account_expires": norm(r.account_expires),
         "email_ad": norm_email(r.email),
@@ -47,8 +47,8 @@ def _to_mfa(r):
         "email_mfa": norm_email(r.email),
         "phone_mfa": norm_phone(r.phones),
         "fio_mfa": norm(r.name),
-        "last_login_mfa": norm(r.last_login),
-        "created_at_mfa": norm(r.created_at),
+        "last_login_mfa": fmt_datetime(r.last_login),
+        "created_at_mfa": fmt_datetime(r.created_at),
         "is_enrolled": norm(r.is_enrolled),
         "authenticators": norm(r.authenticators),
     }

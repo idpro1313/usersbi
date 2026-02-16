@@ -358,8 +358,7 @@
   async function loadTable() {
     tbody.innerHTML = "<tr><td colspan=\"" + TOTAL_COLS + "\">Загрузка…</td></tr>";
     try {
-      var r = await fetch(API + "/api/consolidated");
-      var data = await r.json();
+      var data = await AppUtils.fetchJSON(API + "/api/consolidated");
       cachedRows = data.rows || [];
       searchCache = new Map();  // Сброс кэша поиска
       updateFilterOptions();

@@ -59,8 +59,7 @@
     tbody.innerHTML = "<tr><td colspan=\"" + COLUMNS.length + "\" class=\"muted-text\">Загрузка…</td></tr>";
 
     try {
-      var r = await fetch(API + "/api/groups/members?group=" + encodeURIComponent(group) + "&domain=" + encodeURIComponent(domain));
-      var data = await r.json();
+      var data = await AppUtils.fetchJSON(API + "/api/groups/members?group=" + encodeURIComponent(group) + "&domain=" + encodeURIComponent(domain));
       cachedMembers = data.members || [];
       groupsCount.textContent = data.count + " уч. (" + data.city + ")";
       sortCol = null;
@@ -156,8 +155,7 @@
   // ─── Загрузка дерева ───
   async function loadTree() {
     try {
-      var r = await fetch(API + "/api/groups/tree");
-      var data = await r.json();
+      var data = await AppUtils.fetchJSON(API + "/api/groups/tree");
       treeData = data.domains || [];
       renderTree();
     } catch (e) {

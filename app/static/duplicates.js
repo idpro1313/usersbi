@@ -45,8 +45,7 @@
   /* ── Загрузка данных ── */
   function load() {
     tbody.innerHTML = '<tr><td colspan="' + COLUMNS.length + '" class="muted-text">Загрузка…</td></tr>';
-    fetch(API)
-      .then(function (r) { return r.json(); })
+    AppUtils.fetchJSON(API)
       .then(function (data) {
         allRows = data.rows || [];
         statsEl.textContent = "Уникальных логинов: " + data.unique_logins + " | Записей: " + data.total_records;

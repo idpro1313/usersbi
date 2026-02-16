@@ -25,6 +25,15 @@ window.AppUtils = {
   /**
    * Универсальная выгрузка таблицы в XLSX через POST /api/export/table.
    */
+  /**
+   * Fetch JSON с проверкой статуса ответа.
+   */
+  fetchJSON: async function (url) {
+    var r = await fetch(url);
+    if (!r.ok) throw new Error("Сервер вернул ошибку " + r.status);
+    return r.json();
+  },
+
   exportToXLSX: async function (columns, rows, filename, sheet) {
     if (!rows || !rows.length) { alert("Нет данных для выгрузки"); return; }
     try {
