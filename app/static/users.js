@@ -5,12 +5,14 @@
   // ─── Состояние ───
   var allUsers = [];
   var selectedKey = null;
+  var hideDisabled = false;
 
   // ─── DOM ───
   var sidebarList = document.getElementById("sidebar-list");
   var sidebarInfo = document.getElementById("sidebar-info");
   var userSearch = document.getElementById("user-search");
   var cardWrap = document.getElementById("user-card");
+  var hideDisabledCb = document.getElementById("hide-disabled");
 
   // ─── Рендер списка пользователей (с event delegation) ───
   function renderList(filter) {
@@ -18,8 +20,11 @@
     sidebarList.innerHTML = "";
 
     var filtered = allUsers;
+    if (hideDisabled) {
+      filtered = filtered.filter(function (u) { return !u.all_disabled; });
+    }
     if (filter) {
-      filtered = allUsers.filter(function (u) {
+      filtered = filtered.filter(function (u) {
         return [u.fio, u.staff_uuid].concat(u.logins).join(" ").toLowerCase().indexOf(filter) !== -1;
       });
     }
@@ -568,6 +573,13 @@
   userSearch.addEventListener("input", function () {
     renderList(userSearch.value);
   });
+
+  if (hideDisabledCb) {
+    hideDisabledCb.addEventListener("change", function () {
+      hideDisabled = hideDisabledCb.checked;
+      renderList(userSearch.value);
+    });
+  }
 
   loadList();
 })();

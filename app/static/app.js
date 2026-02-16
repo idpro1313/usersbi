@@ -147,6 +147,8 @@
       if (!f) return;
       if (f === "__EMPTY__") {
         rows = rows.filter(function (row) { var v = row[col.key]; return v == null || v === ""; });
+      } else if (f === "__NOT_EMPTY__") {
+        rows = rows.filter(function (row) { var v = row[col.key]; return v != null && v !== ""; });
       } else {
         rows = rows.filter(function (row) { return String(row[col.key] == null ? "" : row[col.key]) === f; });
       }
@@ -192,12 +194,18 @@
       optAll.textContent = "\u2014 все (" + (sorted.length + (hasEmpty ? 1 : 0)) + ")";
       fragment.appendChild(optAll);
 
-      // «ПУСТО» — первым после «все»
+      // «ПУСТО» и «НЕ ПУСТО» — первыми после «все»
       if (hasEmpty) {
         var optEmpty = document.createElement("option");
         optEmpty.value = "__EMPTY__";
         optEmpty.textContent = "ПУСТО";
         fragment.appendChild(optEmpty);
+      }
+      if (hasEmpty && sorted.length) {
+        var optNotEmpty = document.createElement("option");
+        optNotEmpty.value = "__NOT_EMPTY__";
+        optNotEmpty.textContent = "НЕ ПУСТО";
+        fragment.appendChild(optNotEmpty);
       }
 
       for (var k = 0; k < sorted.length; k++) {
@@ -267,6 +275,8 @@
       if (!f) return;
       if (f === "__EMPTY__") {
         rows = rows.filter(function (row) { var v = row[col.key]; return v == null || v === ""; });
+      } else if (f === "__NOT_EMPTY__") {
+        rows = rows.filter(function (row) { var v = row[col.key]; return v != null && v !== ""; });
       } else {
         rows = rows.filter(function (row) { return String(row[col.key] == null ? "" : row[col.key]) === f; });
       }

@@ -560,6 +560,24 @@ html, body {
 
 .sidebar-search input::placeholder { color: var(--muted); }
 
+.sidebar-controls {
+  padding: 0.25rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.sidebar-checkbox input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .sidebar-tree {
   flex: 1;
   overflow-y: auto;
