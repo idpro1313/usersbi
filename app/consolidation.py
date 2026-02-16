@@ -1,18 +1,23 @@
 # -*- coding: utf-8 -*-
 from sqlalchemy.orm import Session
 from app.database import ADRecord, MFARecord, PeopleRecord
-from app.config import AD_SOURCE_LABELS, AD_USER_OU
+from app.config import AD_SOURCE_LABELS, AD_ACCOUNT_TYPE_RULES
 from app.utils import norm, norm_phone, norm_email, norm_key_login, norm_key_uuid, enabled_str
 
 
 def _account_type(ad_source: str, dn: str) -> str:
-    """Определяет тип УЗ: Пользователь или Сервис по корневой OU."""
-    user_ou = AD_USER_OU.get(ad_source, "")
-    if not user_ou or not dn:
+    """Определяет тип УЗ по правилам из AD_ACCOUNT_TYPE_RULES.
+
+    Правила проверяются по порядку; первое совпадение побеждает.
+    Если ни одно правило не сработало — «Сервис».
+    """
+    rules = AD_ACCOUNT_TYPE_RULES.get(ad_source, [])
+    if not rules or not dn:
         return ""
-    # Проверяем, содержит ли DN пользовательскую OU (без учёта регистра)
-    if user_ou.lower() in dn.lower():
-        return "Пользователь"
+    dn_lower = dn.lower()
+    for pattern, account_type in rules:
+        if pattern.lower() in dn_lower:
+            return account_type
     return "Сервис"
 
 

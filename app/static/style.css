@@ -503,6 +503,11 @@ html, body {
   color: var(--warn);
 }
 
+/* Contractor УЗ — фиолетовый */
+.uz-contractor td {
+  color: #9B6FCF;
+}
+
 .muted-text {
   color: var(--muted);
   font-size: 0.8rem;

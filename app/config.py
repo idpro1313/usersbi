@@ -44,12 +44,25 @@ AD_DOMAIN_DN = {
     "moscow":   "DC=aplana,DC=com",
 }
 
-# Корневые OU, содержащие пользовательские (не сервисные) УЗ
-# Если distinguishedName содержит одну из этих OU — тип "Пользователь", иначе "Сервис"
-AD_USER_OU = {
-    "izhevsk":  "OU=Staff",
-    "kostroma": "OU=MyBusiness",
-    "moscow":   "OU=Develonica Group",
+# Правила определения типа УЗ по distinguishedName.
+# Для каждого домена — упорядоченный список (паттерн DN, тип УЗ).
+# Проверяется по порядку, первое совпадение (case-insensitive подстрока) побеждает.
+# Если ни одно правило не сработало — тип "Сервис".
+AD_ACCOUNT_TYPE_RULES: dict[str, list[tuple[str, str]]] = {
+    "izhevsk": [
+        ("OU=HTC,OU=Staff",                       "Пользователь"),
+        ("OU=Уволенные сотрудники,OU=Staff",       "Пользователь"),
+        ("OU=OutStaff,OU=Staff",                   "Contractor"),
+    ],
+    "moscow": [
+        ("OU=Departments,OU=Develonica Group",     "Пользователь"),
+        ("OU=Disabled Users,OU=Develonica Group",  "Пользователь"),
+        ("OU=Contractor,OU=Develonica Group",      "Contractor"),
+    ],
+    "kostroma": [
+        ("OU=Users,OU=MyBusiness",                 "Пользователь"),
+        ("OU=Disabled_user,OU=MyBusiness",         "Пользователь"),
+    ],
 }
 
 # ======================================================================

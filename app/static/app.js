@@ -295,7 +295,8 @@
       var tr = document.createElement("tr");
       var inactive = row.uz_active === "Нет";
       var service = row.account_type === "Сервис";
-      tr.className = rowClass(row.source) + (inactive ? " uz-inactive" : "") + (service ? " uz-service" : "");
+      var contractor = row.account_type === "Contractor";
+      tr.className = rowClass(row.source) + (inactive ? " uz-inactive" : "") + (service ? " uz-service" : "") + (contractor ? " uz-contractor" : "");
 
       var tdNum = document.createElement("td");
       tdNum.className = "col-num";
