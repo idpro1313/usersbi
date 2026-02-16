@@ -29,3 +29,6 @@ Thumbs.db
 *.log
 dist/
 build/
+
+# Frontend
+node_modules/

@@ -36,11 +36,6 @@ logger = logging.getLogger(__name__)
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
-def _read_html(filename: str) -> str:
-    """Читает HTML-файл из static-папки."""
-    return (STATIC_DIR / filename).read_text(encoding="utf-8")
-
-
 async def _read_upload(file: UploadFile) -> bytes:
     """Читает загруженный файл с проверкой размера."""
     content = await file.read()
@@ -103,7 +98,7 @@ if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
-# ─── Страницы (HTML) ────────────────────────────────────────
+# ─── Favicon ─────────────────────────────────────────────────
 
 @app.get("/favicon.ico", include_in_schema=False)
 async def favicon():
@@ -111,46 +106,6 @@ async def favicon():
     if ico.exists():
         return FileResponse(str(ico), media_type="image/x-icon")
     return HTMLResponse("", status_code=204)
-
-
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    return _read_html("index.html")
-
-
-@app.get("/upload", response_class=HTMLResponse)
-async def upload_page():
-    return _read_html("upload.html")
-
-
-@app.get("/groups", response_class=HTMLResponse)
-async def groups_page():
-    return _read_html("groups.html")
-
-
-@app.get("/structure", response_class=HTMLResponse)
-async def structure_page():
-    return _read_html("structure.html")
-
-
-@app.get("/users", response_class=HTMLResponse)
-async def users_page():
-    return _read_html("users.html")
-
-
-@app.get("/duplicates", response_class=HTMLResponse)
-async def duplicates_page():
-    return _read_html("duplicates.html")
-
-
-@app.get("/org", response_class=HTMLResponse)
-async def org_page():
-    return _read_html("org.html")
-
-
-@app.get("/security", response_class=HTMLResponse)
-async def security_page():
-    return _read_html("security.html")
 
 
 # ─── Загрузка файлов ────────────────────────────────────────
@@ -479,3 +434,14 @@ async def export_table(payload: Dict[str, Any] = Body(...)):
 @app.get("/api/debug/columns")
 async def debug_columns():
     return get_last_parse_info()
+
+
+# ─── SPA catch-all ────────────────────────────────────────────
+
+@app.get("/{path:path}", response_class=HTMLResponse)
+async def spa_catchall(path: str):
+    """Отдаёт Vue SPA index.html для всех не-API маршрутов."""
+    dist_index = STATIC_DIR / "dist" / "index.html"
+    if dist_index.exists():
+        return dist_index.read_text(encoding="utf-8")
+    return HTMLResponse("Frontend not built. Run: cd frontend && npm run build", status_code=404)
