@@ -9,7 +9,7 @@ def _account_type(ad_source: str, dn: str) -> str:
     """Определяет тип УЗ по правилам из AD_ACCOUNT_TYPE_RULES.
 
     Правила проверяются по порядку; первое совпадение побеждает.
-    Если ни одно правило не сработало — «Сервис».
+    Если ни одно правило не сработало — «Service».
     """
     rules = AD_ACCOUNT_TYPE_RULES.get(ad_source, [])
     if not rules or not dn:
@@ -18,7 +18,7 @@ def _account_type(ad_source: str, dn: str) -> str:
     for pattern, account_type in rules:
         if pattern.lower() in dn_lower:
             return account_type
-    return "Сервис"
+    return "Service"
 
 
 def _to_ad(r):

@@ -294,7 +294,7 @@
       var row = filteredRows[i];
       var tr = document.createElement("tr");
       var inactive = row.uz_active === "Нет";
-      var service = row.account_type === "Сервис";
+      var service = row.account_type === "Service";
       var contractor = row.account_type === "Contractor";
       tr.className = rowClass(row.source) + (inactive ? " uz-inactive" : "") + (service ? " uz-service" : "") + (contractor ? " uz-contractor" : "");
 

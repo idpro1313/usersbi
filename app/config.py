@@ -47,21 +47,21 @@ AD_DOMAIN_DN = {
 # Правила определения типа УЗ по distinguishedName.
 # Для каждого домена — упорядоченный список (паттерн DN, тип УЗ).
 # Проверяется по порядку, первое совпадение (case-insensitive подстрока) побеждает.
-# Если ни одно правило не сработало — тип "Сервис".
+# Если ни одно правило не сработало — тип "Service".
 AD_ACCOUNT_TYPE_RULES: dict[str, list[tuple[str, str]]] = {
     "izhevsk": [
-        ("OU=HTC,OU=Staff",                       "Пользователь"),
-        ("OU=Уволенные сотрудники,OU=Staff",       "Пользователь"),
+        ("OU=HTC,OU=Staff",                       "User"),
+        ("OU=Уволенные сотрудники,OU=Staff",       "User"),
         ("OU=OutStaff,OU=Staff",                   "Contractor"),
     ],
     "moscow": [
-        ("OU=Departments,OU=Develonica Group",     "Пользователь"),
-        ("OU=Disabled Users,OU=Develonica Group",  "Пользователь"),
+        ("OU=Departments,OU=Develonica Group",     "User"),
+        ("OU=Disabled Users,OU=Develonica Group",  "User"),
         ("OU=Contractor,OU=Develonica Group",      "Contractor"),
     ],
     "kostroma": [
-        ("OU=Users,OU=MyBusiness",                 "Пользователь"),
-        ("OU=Disabled_user,OU=MyBusiness",         "Пользователь"),
+        ("OU=Users,OU=MyBusiness",                 "User"),
+        ("OU=Disabled_user,OU=MyBusiness",         "User"),
     ],
 }
 
