@@ -134,12 +134,21 @@
     }
 
     var companies = treeData;
+
+    // Текстовый фильтр
     if (filter) {
       companies = companies.filter(function (c) {
         if (c.name.toLowerCase().indexOf(filter) !== -1) return true;
         return c.departments.some(function (d) {
           return d.name.toLowerCase().indexOf(filter) !== -1;
         });
+      });
+    }
+
+    // Фильтр «скрыть заблокированные»: убираем компании без активных УЗ
+    if (hideDisabled) {
+      companies = companies.filter(function (c) {
+        return (c.enabled_count || 0) > 0;
       });
     }
 
@@ -154,7 +163,7 @@
       var domainEl = document.createElement("div");
       domainEl.className = "tree-domain";
 
-      // Заголовок компании (стиль как у доменов в Группах/OU)
+      // Заголовок компании
       var header = document.createElement("div");
       header.className = "tree-domain-header tree-org-header";
       header.dataset.company = comp.name;
@@ -169,22 +178,31 @@
       nameSpan.textContent = comp.name;
       header.appendChild(nameSpan);
 
+      var dispCount = hideDisabled ? (comp.enabled_count || 0) : comp.count;
       var badge = document.createElement("span");
       badge.className = "tree-badge";
-      badge.textContent = comp.departments.length + " отд. / " + comp.count + " чел.";
+      badge.textContent = comp.departments.length + " отд. / " + dispCount + " чел.";
       header.appendChild(badge);
 
       domainEl.appendChild(header);
 
-      // Список отделов (стиль как у групп)
+      // Список отделов
       var deptList = document.createElement("div");
       deptList.className = "tree-group-list";
 
       var depts = comp.departments;
+
       if (filter) {
         depts = depts.filter(function (d) {
           return d.name.toLowerCase().indexOf(filter) !== -1
             || comp.name.toLowerCase().indexOf(filter) !== -1;
+        });
+      }
+
+      // Скрываем отделы без активных УЗ
+      if (hideDisabled) {
+        depts = depts.filter(function (d) {
+          return (d.enabled_count || 0) > 0;
         });
       }
 
@@ -193,7 +211,8 @@
         item.className = "tree-group tree-org-dept";
         item.dataset.company = comp.name;
         item.dataset.department = dept.name;
-        item.innerHTML = esc(dept.name) + " <span class=\"tree-group-count\">(" + dept.count + ")</span>";
+        var deptCount = hideDisabled ? (dept.enabled_count || 0) : dept.count;
+        item.innerHTML = esc(dept.name) + " <span class=\"tree-group-count\">(" + deptCount + ")</span>";
         deptList.appendChild(item);
       });
 
@@ -247,15 +266,15 @@
   });
 
   // ─── Галочка «Скрыть заблокированные» ───
+  function onHideDisabledToggle() {
+    hideDisabled = hideDisabledCb.checked;
+    renderTree(orgSearch.value);
+    renderMembers();
+  }
+
   if (hideDisabledCb) {
-    hideDisabledCb.addEventListener("change", function () {
-      hideDisabled = this.checked;
-      renderMembers();
-    });
-    hideDisabledCb.addEventListener("click", function () {
-      hideDisabled = this.checked;
-      renderMembers();
-    });
+    hideDisabledCb.addEventListener("change", onHideDisabledToggle);
+    hideDisabledCb.addEventListener("click", onHideDisabledToggle);
   }
 
   // ─── Экспорт XLSX ───

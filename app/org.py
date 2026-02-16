@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord
 from app.config import AD_SOURCE_LABELS
-from app.utils import norm, build_member_dict, sort_members
+from app.utils import norm, enabled_str, build_member_dict, sort_members
 
 router = APIRouter(prefix="/api/org", tags=["org"])
 
@@ -15,30 +15,43 @@ router = APIRouter(prefix="/api/org", tags=["org"])
 def org_tree(db: Session = Depends(get_db)):
     """
     Дерево: company → department (со всех доменов, без группировки по домену).
+    Возвращает count (всего) и enabled_count (активных) для каждого узла.
     """
     records = db.query(
-        ADRecord.ad_source, ADRecord.company, ADRecord.department
+        ADRecord.ad_source, ADRecord.company, ADRecord.department, ADRecord.enabled
     ).all()
 
-    # company → department → count
-    tree: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    # company → department → {count, enabled_count}
+    tree: dict[str, dict[str, dict[str, int]]] = defaultdict(
+        lambda: defaultdict(lambda: {"count": 0, "enabled_count": 0})
+    )
 
-    for ad_source, company, department in records:
+    for ad_source, company, department, enabled_val in records:
         comp = norm(company) or "(без компании)"
         dept = norm(department) or "(без отдела)"
-        tree[comp][dept] += 1
+        tree[comp][dept]["count"] += 1
+        if enabled_str(enabled_val) == "Да":
+            tree[comp][dept]["enabled_count"] += 1
 
     companies = []
     for comp_name in sorted(tree.keys(), key=str.lower):
         depts = tree[comp_name]
         dept_list = sorted(
-            [{"name": d, "count": c} for d, c in depts.items()],
+            [
+                {
+                    "name": d,
+                    "count": info["count"],
+                    "enabled_count": info["enabled_count"],
+                }
+                for d, info in depts.items()
+            ],
             key=lambda x: x["name"].lower(),
         )
         companies.append({
             "name": comp_name,
             "departments": dept_list,
             "count": sum(d["count"] for d in dept_list),
+            "enabled_count": sum(d["enabled_count"] for d in dept_list),
         })
 
     total = db.query(ADRecord).count()
