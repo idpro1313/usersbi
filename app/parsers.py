@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 import io
+import logging
 import re
+import threading
+
 import pandas as pd
 from app.config import AD_COLUMNS, MFA_COLUMNS, PEOPLE_COLUMNS
 from app.utils import norm, norm_phone, safe_date
+
+logger = logging.getLogger(__name__)
 
 
 def _extract_domain_from_dn(dn: str) -> str:
@@ -40,10 +45,12 @@ def _read_file(content: bytes, filename: str) -> pd.DataFrame:
 
 # Хранит информацию о последнем парсинге для диагностики
 _last_parse_info = {}
+_parse_info_lock = threading.Lock()
 
 
 def get_last_parse_info() -> dict:
-    return dict(_last_parse_info)
+    with _parse_info_lock:
+        return dict(_last_parse_info)
 
 
 def parse_ad(content: bytes, filename: str, override_domain: str = "",
@@ -84,18 +91,19 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "",
         skipped = total_before - len(df)
 
         # Диагностика
-        _last_parse_info["ad"] = {
-            "original_columns": original_cols,
-            "mapped_columns": mapped_cols,
-            "domain_source": "distinguishedName" if "domain" not in mapped_cols else "column",
-            "sample_login": norm(df["login"].iloc[0]) if "login" in df.columns and len(df) > 0 else "NOT FOUND",
-            "sample_domain": norm(df["domain"].iloc[0]) if "domain" in df.columns and len(df) > 0 else "NOT FOUND",
-            "rows": len(df),
-            "skipped_wrong_domain": skipped,
-        }
-        print(f"[AD] Original columns: {original_cols}")
-        print(f"[AD] Mapped columns:   {mapped_cols}")
-        print(f"[AD] Total in file: {total_before}, accepted: {len(df)}, skipped: {skipped}")
+        with _parse_info_lock:
+            _last_parse_info["ad"] = {
+                "original_columns": original_cols,
+                "mapped_columns": mapped_cols,
+                "domain_source": "distinguishedName" if "domain" not in mapped_cols else "column",
+                "sample_login": norm(df["login"].iloc[0]) if "login" in df.columns and len(df) > 0 else "NOT FOUND",
+                "sample_domain": norm(df["domain"].iloc[0]) if "domain" in df.columns and len(df) > 0 else "NOT FOUND",
+                "rows": len(df),
+                "skipped_wrong_domain": skipped,
+            }
+        logger.info("[AD] Original columns: %s", original_cols)
+        logger.info("[AD] Mapped columns:   %s", mapped_cols)
+        logger.info("[AD] Total in file: %d, accepted: %d, skipped: %d", total_before, len(df), skipped)
 
         # Используем to_dict вместо iterrows для скорости
         records = df.to_dict("records")
@@ -133,8 +141,9 @@ def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:
         df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=";", on_bad_lines="skip")
         original_cols = list(df.columns)
         df = _map_columns(df, MFA_COLUMNS)
-        _last_parse_info["mfa"] = {"original_columns": original_cols, "mapped_columns": list(df.columns), "rows": len(df)}
-        print(f"[MFA] Original columns: {original_cols}")
+        with _parse_info_lock:
+            _last_parse_info["mfa"] = {"original_columns": original_cols, "mapped_columns": list(df.columns), "rows": len(df)}
+        logger.info("[MFA] Original columns: %s", original_cols)
 
         rows = []
         for r in df.to_dict("records"):
@@ -163,8 +172,9 @@ def parse_people(content: bytes, filename: str) -> tuple[list[dict], str | None]
         df = pd.read_excel(io.BytesIO(content), sheet_name=0)
         original_cols = list(df.columns)
         df = _map_columns(df, PEOPLE_COLUMNS)
-        _last_parse_info["people"] = {"original_columns": original_cols, "mapped_columns": list(df.columns), "rows": len(df)}
-        print(f"[People] Original columns: {original_cols}")
+        with _parse_info_lock:
+            _last_parse_info["people"] = {"original_columns": original_cols, "mapped_columns": list(df.columns), "rows": len(df)}
+        logger.info("[People] Original columns: %s", original_cols)
 
         rows = []
         for r in df.to_dict("records"):

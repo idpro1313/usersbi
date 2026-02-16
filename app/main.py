@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+import base64
 import io
+import logging
+import secrets
 from contextlib import asynccontextmanager
 from typing import Dict, Any
 
@@ -8,17 +11,22 @@ from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Body
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response as StarletteResponse
 from pathlib import Path
 
 from app.database import init_db, get_db, Upload, ADRecord, MFARecord, PeopleRecord
 from app.parsers import parse_ad, parse_mfa, parse_people, get_last_parse_info
 from app.consolidation import build_consolidated
-from app.config import AD_DOMAINS, AD_DOMAIN_DN
+from app.config import AD_DOMAINS, AD_DOMAIN_DN, MAX_UPLOAD_SIZE, AUTH_USERNAME, AUTH_PASSWORD
 from app.groups import router as groups_router
 from app.structure import router as structure_router
 from app.users import router as users_router
 from app.duplicates import router as duplicates_router
 from app.org import router as org_router
+
+logger = logging.getLogger(__name__)
 
 
 # ─── Хелперы ────────────────────────────────────────────────
@@ -31,6 +39,46 @@ def _read_html(filename: str) -> str:
     return (STATIC_DIR / filename).read_text(encoding="utf-8")
 
 
+async def _read_upload(file: UploadFile) -> bytes:
+    """Читает загруженный файл с проверкой размера."""
+    content = await file.read()
+    if len(content) > MAX_UPLOAD_SIZE:
+        size_mb = len(content) / (1024 * 1024)
+        limit_mb = MAX_UPLOAD_SIZE / (1024 * 1024)
+        raise HTTPException(
+            413,
+            f"Файл слишком большой ({size_mb:.1f} МБ). Максимум: {limit_mb:.0f} МБ",
+        )
+    return content
+
+
+# ─── Basic Auth (опциональная) ───────────────────────────────
+
+class _BasicAuthMiddleware(BaseHTTPMiddleware):
+    """HTTP Basic Auth. Активна только при заданных AUTH_USERNAME и AUTH_PASSWORD."""
+
+    async def dispatch(self, request: Request, call_next):
+        if not AUTH_USERNAME or not AUTH_PASSWORD:
+            return await call_next(request)
+        # Пропускаем healthcheck для Docker
+        if request.url.path == "/api/stats":
+            return await call_next(request)
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Basic "):
+            try:
+                decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+                username, password = decoded.split(":", 1)
+                if (secrets.compare_digest(username, AUTH_USERNAME)
+                        and secrets.compare_digest(password, AUTH_PASSWORD)):
+                    return await call_next(request)
+            except Exception:
+                pass
+        return StarletteResponse(
+            content="Unauthorized",
+            status_code=401,
+            headers={"WWW-Authenticate": 'Basic realm="UsersBI"'},
+        )
+
 
 # ─── Приложение ──────────────────────────────────────────────
 
@@ -41,6 +89,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Девелоника Пользователи", lifespan=lifespan)
+app.add_middleware(_BasicAuthMiddleware)
 app.include_router(groups_router)
 app.include_router(structure_router)
 app.include_router(users_router)
@@ -105,7 +154,7 @@ async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session =
     city_name = AD_DOMAINS[domain_key]
     if not file.filename:
         raise HTTPException(400, "Нет имени файла")
-    content = await file.read()
+    content = await _read_upload(file)
     dn_suffix = AD_DOMAIN_DN.get(domain_key, "")
     rows, err, skipped = parse_ad(content, file.filename, override_domain=city_name, expected_dn_suffix=dn_suffix)
     if err:
@@ -136,7 +185,7 @@ async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session =
 async def upload_mfa(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename:
         raise HTTPException(400, "Нет имени файла")
-    content = await file.read()
+    content = await _read_upload(file)
     rows, err = parse_mfa(content, file.filename)
     if err:
         raise HTTPException(400, f"Ошибка разбора файла: {err}")
@@ -156,7 +205,7 @@ async def upload_mfa(file: UploadFile = File(...), db: Session = Depends(get_db)
 async def upload_people(file: UploadFile = File(...), db: Session = Depends(get_db)):
     if not file.filename:
         raise HTTPException(400, "Нет имени файла")
-    content = await file.read()
+    content = await _read_upload(file)
     rows, err = parse_people(content, file.filename)
     if err:
         raise HTTPException(400, f"Ошибка разбора файла: {err}")

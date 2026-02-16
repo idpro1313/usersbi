@@ -7,6 +7,13 @@ DATA_DIR = BASE_DIR / "data"
 DATA_DIR.mkdir(exist_ok=True)
 DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'app.db'}")
 
+# Максимальный размер загружаемого файла (по умолчанию 50 МБ)
+MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", str(50 * 1024 * 1024)))
+
+# Опциональная Basic Auth (активна, только если заданы обе переменные)
+AUTH_USERNAME = os.getenv("AUTH_USERNAME", "")
+AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
+
 # ======================================================================
 # Домены AD (ключ → город, DN-суффикс для справки)
 # ======================================================================

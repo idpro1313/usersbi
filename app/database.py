@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-from datetime import datetime
+import re
+from datetime import datetime, timezone
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, text, inspect as sa_inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import DATABASE_URL
+
+_SAFE_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -14,7 +17,7 @@ class Upload(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     source = Column(String(20), nullable=False)  # ad, mfa, people
     filename = Column(String(255), nullable=False)
-    uploaded_at = Column(DateTime, default=datetime.utcnow)
+    uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     row_count = Column(Integer, default=0)
 
 
@@ -87,9 +90,13 @@ class PeopleRecord(Base):
 
 def _migrate_table(insp, table_name, model_class):
     """Добавляет недостающие колонки в таблицу на основе модели."""
+    if not _SAFE_IDENTIFIER.match(table_name):
+        raise ValueError(f"Недопустимое имя таблицы: {table_name}")
     existing = {c["name"] for c in insp.get_columns(table_name)}
     for col in model_class.__table__.columns:
         if col.name not in existing:
+            if not _SAFE_IDENTIFIER.match(col.name):
+                raise ValueError(f"Недопустимое имя колонки: {col.name}")
             col_type = "TEXT"
             if isinstance(col.type, String):
                 length = getattr(col.type, "length", None)
@@ -99,11 +106,14 @@ def _migrate_table(insp, table_name, model_class):
             default = "''" if col_type != "INTEGER" else "0"
             with engine.begin() as conn:
                 conn.execute(text(
-                    f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type} DEFAULT {default}"
+                    f'ALTER TABLE "{table_name}" ADD COLUMN "{col.name}" {col_type} DEFAULT {default}'
                 ))
 
 
 def init_db():
+    if "sqlite" in DATABASE_URL:
+        with engine.begin() as conn:
+            conn.execute(text("PRAGMA journal_mode=WAL"))
     Base.metadata.create_all(bind=engine)
     insp = sa_inspect(engine)
     _migrate_table(insp, "ad_records", ADRecord)

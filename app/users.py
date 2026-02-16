@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """API-эндпоинты для анализа пользователей по StaffUUID."""
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord, MFARecord, PeopleRecord
@@ -348,6 +348,7 @@ def _find_matches(
     Ищет «возможные совпадения» — записи из AD, People, MFA,
     у которых совпадает ФИО (точно) или email с текущим пользователем,
     но они НЕ принадлежат ему напрямую (другой StaffUUID / логин).
+    Фильтрация кандидатов выполняется на уровне SQL для производительности.
     """
     if not fio and not emails:
         return []
@@ -360,95 +361,111 @@ def _find_matches(
     matches: list[dict] = []
     seen_keys: set[str] = set()
 
-    # --- AD ---
-    for r in db.query(ADRecord).all():
-        r_uuid = norm(r.staff_uuid).lower()
-        r_login = norm(r.login).lower()
-        # Пропускаем записи, принадлежащие этому же пользователю
-        if own_uuid_low and r_uuid and r_uuid == own_uuid_low:
-            continue
-        if r_login and r_login in own_logins_low:
-            continue
-        r_fio = norm(r.display_name).strip().lower()
-        r_email = norm_email(r.email)
-        reason = []
-        if fio_low and r_fio and r_fio == fio_low:
-            reason.append("ФИО")
-        if r_email and r_email in email_set:
-            reason.append("Email")
-        if not reason:
-            continue
-        mkey = f"ad_{r.id}"
-        if mkey in seen_keys:
-            continue
-        seen_keys.add(mkey)
-        matches.append({
-            "source": AD_SOURCE_LABELS.get(r.ad_source, "AD"),
-            "fio": norm(r.display_name),
-            "email": norm(r.email),
-            "login": norm(r.login),
-            "staff_uuid": norm(r.staff_uuid),
-            "enabled": enabled_str(r.enabled),
-            "reason": ", ".join(reason),
-        })
+    # --- AD: фильтрация кандидатов на уровне SQL ---
+    ad_conditions = []
+    if fio_low:
+        ad_conditions.append(func.lower(ADRecord.display_name) == fio_low)
+    if email_set:
+        ad_conditions.append(func.lower(ADRecord.email).in_(email_set))
+    if ad_conditions:
+        for r in db.query(ADRecord).filter(or_(*ad_conditions)).all():
+            r_uuid = norm(r.staff_uuid).lower()
+            r_login = norm(r.login).lower()
+            if own_uuid_low and r_uuid and r_uuid == own_uuid_low:
+                continue
+            if r_login and r_login in own_logins_low:
+                continue
+            r_fio = norm(r.display_name).strip().lower()
+            r_email = norm_email(r.email)
+            reason = []
+            if fio_low and r_fio and r_fio == fio_low:
+                reason.append("ФИО")
+            if r_email and r_email in email_set:
+                reason.append("Email")
+            if not reason:
+                continue
+            mkey = f"ad_{r.id}"
+            if mkey in seen_keys:
+                continue
+            seen_keys.add(mkey)
+            matches.append({
+                "source": AD_SOURCE_LABELS.get(r.ad_source, "AD"),
+                "fio": norm(r.display_name),
+                "email": norm(r.email),
+                "login": norm(r.login),
+                "staff_uuid": norm(r.staff_uuid),
+                "enabled": enabled_str(r.enabled),
+                "reason": ", ".join(reason),
+            })
 
-    # --- People ---
-    for r in db.query(PeopleRecord).all():
-        r_uuid = norm(r.staff_uuid).lower()
-        if own_uuid_low and r_uuid and r_uuid == own_uuid_low:
-            continue
-        r_fio = norm(r.fio).strip().lower()
-        r_email = norm_email(r.email)
-        reason = []
-        if fio_low and r_fio and r_fio == fio_low:
-            reason.append("ФИО")
-        if r_email and r_email in email_set:
-            reason.append("Email")
-        if not reason:
-            continue
-        mkey = f"people_{r.id}"
-        if mkey in seen_keys:
-            continue
-        seen_keys.add(mkey)
-        matches.append({
-            "source": "Кадры",
-            "fio": norm(r.fio),
-            "email": norm(r.email),
-            "login": "",
-            "staff_uuid": norm(r.staff_uuid),
-            "enabled": "",
-            "reason": ", ".join(reason),
-        })
+    # --- People: фильтрация кандидатов на уровне SQL ---
+    people_conditions = []
+    if fio_low:
+        people_conditions.append(func.lower(PeopleRecord.fio) == fio_low)
+    if email_set:
+        people_conditions.append(func.lower(PeopleRecord.email).in_(email_set))
+    if people_conditions:
+        for r in db.query(PeopleRecord).filter(or_(*people_conditions)).all():
+            r_uuid = norm(r.staff_uuid).lower()
+            if own_uuid_low and r_uuid and r_uuid == own_uuid_low:
+                continue
+            r_fio = norm(r.fio).strip().lower()
+            r_email = norm_email(r.email)
+            reason = []
+            if fio_low and r_fio and r_fio == fio_low:
+                reason.append("ФИО")
+            if r_email and r_email in email_set:
+                reason.append("Email")
+            if not reason:
+                continue
+            mkey = f"people_{r.id}"
+            if mkey in seen_keys:
+                continue
+            seen_keys.add(mkey)
+            matches.append({
+                "source": "Кадры",
+                "fio": norm(r.fio),
+                "email": norm(r.email),
+                "login": "",
+                "staff_uuid": norm(r.staff_uuid),
+                "enabled": "",
+                "reason": ", ".join(reason),
+            })
 
-    # --- MFA ---
-    for r in db.query(MFARecord).all():
-        r_identity = norm(r.identity)
-        r_ident_clean = r_identity.split("\\")[-1].lower() if "\\" in r_identity else r_identity.lower()
-        # Пропускаем MFA, принадлежащие этому же пользователю
-        if r_ident_clean and r_ident_clean in own_logins_low:
-            continue
-        r_fio = norm(r.name).strip().lower()
-        r_email = norm_email(r.email)
-        reason = []
-        if fio_low and r_fio and r_fio == fio_low:
-            reason.append("ФИО")
-        if r_email and r_email in email_set:
-            reason.append("Email")
-        if not reason:
-            continue
-        mkey = f"mfa_{r.id}"
-        if mkey in seen_keys:
-            continue
-        seen_keys.add(mkey)
-        matches.append({
-            "source": "MFA",
-            "fio": norm(r.name),
-            "email": norm(r.email),
-            "login": r_identity,
-            "staff_uuid": "",
-            "enabled": "",
-            "reason": ", ".join(reason),
-        })
+    # --- MFA: фильтрация кандидатов на уровне SQL ---
+    mfa_conditions = []
+    if fio_low:
+        mfa_conditions.append(func.lower(MFARecord.name) == fio_low)
+    if email_set:
+        mfa_conditions.append(func.lower(MFARecord.email).in_(email_set))
+    if mfa_conditions:
+        for r in db.query(MFARecord).filter(or_(*mfa_conditions)).all():
+            r_identity = norm(r.identity)
+            r_ident_clean = r_identity.split("\\")[-1].lower() if "\\" in r_identity else r_identity.lower()
+            if r_ident_clean and r_ident_clean in own_logins_low:
+                continue
+            r_fio = norm(r.name).strip().lower()
+            r_email = norm_email(r.email)
+            reason = []
+            if fio_low and r_fio and r_fio == fio_low:
+                reason.append("ФИО")
+            if r_email and r_email in email_set:
+                reason.append("Email")
+            if not reason:
+                continue
+            mkey = f"mfa_{r.id}"
+            if mkey in seen_keys:
+                continue
+            seen_keys.add(mkey)
+            matches.append({
+                "source": "MFA",
+                "fio": norm(r.name),
+                "email": norm(r.email),
+                "login": r_identity,
+                "staff_uuid": "",
+                "enabled": "",
+                "reason": ", ".join(reason),
+            })
 
     matches.sort(key=lambda m: (m.get("reason", ""), m.get("fio", "").lower()))
     return matches
