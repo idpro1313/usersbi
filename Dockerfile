@@ -1,4 +1,4 @@
-FROM node:20-slim AS frontend
+FROM node:24-alpine AS frontend
 WORKDIR /build
 COPY frontend/package.json ./
 RUN npm install
@@ -6,7 +6,7 @@ COPY frontend/ ./
 ENV VITE_OUT_DIR=/frontend-dist
 RUN npm run build
 
-FROM python:3.11-slim
+FROM python:3.14-slim
 WORKDIR /app
 
 COPY app/requirements.txt .
