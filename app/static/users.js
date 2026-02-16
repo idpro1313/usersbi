@@ -307,8 +307,38 @@
     openMembersPopup(type, domain, name);
   });
 
+  // ─── Общий popup builder ───
+  function createPopup(title, extraClass) {
+    var overlay = document.createElement("div");
+    overlay.className = "popup-overlay";
+    var popup = document.createElement("div");
+    popup.className = "popup-window" + (extraClass ? " " + extraClass : "");
+    var header = document.createElement("div");
+    header.className = "popup-header";
+    header.innerHTML =
+      "<h3 class=\"popup-title\">" + esc(title) + "</h3>" +
+      "<button class=\"popup-close btn-icon\" title=\"Закрыть\">" +
+        "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\">" +
+          "<line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/>" +
+        "</svg>" +
+      "</button>";
+    var body = document.createElement("div");
+    body.className = "popup-body";
+    body.innerHTML = "<p class=\"muted-text\">Загрузка…</p>";
+    popup.appendChild(header);
+    popup.appendChild(body);
+    overlay.appendChild(popup);
+    document.body.appendChild(overlay);
+    function close() { overlay.remove(); }
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) close(); });
+    header.querySelector(".popup-close").addEventListener("click", close);
+    document.addEventListener("keydown", function onEsc(e) {
+      if (e.key === "Escape") { close(); document.removeEventListener("keydown", onEsc); }
+    });
+    return { overlay: overlay, header: header, body: body, close: close };
+  }
+
   function openMembersPopup(type, domain, name) {
-    // Определяем API-URL
     var apiUrl;
     var title;
     if (type === "group") {
@@ -319,52 +349,16 @@
       title = "OU: " + name.replace(/\//g, " › ");
     }
 
-    // Создаём overlay
-    var overlay = document.createElement("div");
-    overlay.className = "popup-overlay";
+    var p = createPopup(title);
 
-    var popup = document.createElement("div");
-    popup.className = "popup-window";
-
-    var header = document.createElement("div");
-    header.className = "popup-header";
-    header.innerHTML =
-      "<h3 class=\"popup-title\">" + esc(title) + "</h3>" +
-      "<button class=\"popup-close btn-icon\" title=\"Закрыть\">" +
-        "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\">" +
-          "<line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/>" +
-        "</svg>" +
-      "</button>";
-
-    var body = document.createElement("div");
-    body.className = "popup-body";
-    body.innerHTML = "<p class=\"muted-text\">Загрузка…</p>";
-
-    popup.appendChild(header);
-    popup.appendChild(body);
-    overlay.appendChild(popup);
-    document.body.appendChild(overlay);
-
-    // Закрытие
-    function close() { overlay.remove(); }
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) close();
-    });
-    header.querySelector(".popup-close").addEventListener("click", close);
-    document.addEventListener("keydown", function onEsc(e) {
-      if (e.key === "Escape") { close(); document.removeEventListener("keydown", onEsc); }
-    });
-
-    // Загружаем данные
     fetch(apiUrl)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         var members = data.members || [];
         if (!members.length) {
-          body.innerHTML = "<p class=\"muted-text\">Нет участников</p>";
+          p.body.innerHTML = "<p class=\"muted-text\">Нет участников</p>";
           return;
         }
-
         var cols = [
           { key: "display_name", label: "ФИО" },
           { key: "login",        label: "Логин" },
@@ -375,71 +369,33 @@
           { key: "department",   label: "Отдел" },
           { key: "company",      label: "Компания" },
         ];
-
         var tbl = "<p class=\"popup-count\">Участников: " + members.length + "</p>";
         tbl += "<table class=\"data-table popup-table\"><thead><tr>";
-        for (var c = 0; c < cols.length; c++) {
-          tbl += "<th>" + esc(cols[c].label) + "</th>";
-        }
+        for (var c = 0; c < cols.length; c++) tbl += "<th>" + esc(cols[c].label) + "</th>";
         tbl += "</tr></thead><tbody>";
-
         for (var i = 0; i < members.length; i++) {
           var m = members[i];
           var rowCls = (m.enabled || "").toLowerCase() === "нет" ? " class=\"row-inactive\"" : "";
           tbl += "<tr" + rowCls + ">";
-          for (var c2 = 0; c2 < cols.length; c2++) {
-            tbl += "<td>" + esc(m[cols[c2].key] || "") + "</td>";
-          }
+          for (var c2 = 0; c2 < cols.length; c2++) tbl += "<td>" + esc(m[cols[c2].key] || "") + "</td>";
           tbl += "</tr>";
         }
         tbl += "</tbody></table>";
-        body.innerHTML = tbl;
+        p.body.innerHTML = tbl;
       })
       .catch(function (e) {
-        body.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
+        p.body.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
       });
   }
 
   // ─── Popup карточки руководителя ───
   function openManagerPopup(managerKey) {
-    var overlay = document.createElement("div");
-    overlay.className = "popup-overlay";
-
-    var popup = document.createElement("div");
-    popup.className = "popup-window popup-window-wide";
-
-    var header = document.createElement("div");
-    header.className = "popup-header";
-    header.innerHTML =
-      "<h3 class=\"popup-title\">Карточка руководителя</h3>" +
-      "<button class=\"popup-close btn-icon\" title=\"Закрыть\">" +
-        "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\">" +
-          "<line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"/><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"/>" +
-        "</svg>" +
-      "</button>";
-
-    var body = document.createElement("div");
-    body.className = "popup-body";
-    body.innerHTML = "<p class=\"muted-text\">Загрузка…</p>";
-
-    popup.appendChild(header);
-    popup.appendChild(body);
-    overlay.appendChild(popup);
-    document.body.appendChild(overlay);
-
-    function close() { overlay.remove(); }
-    overlay.addEventListener("click", function (e) {
-      if (e.target === overlay) close();
-    });
-    header.querySelector(".popup-close").addEventListener("click", close);
-    document.addEventListener("keydown", function onEsc(e) {
-      if (e.key === "Escape") { close(); document.removeEventListener("keydown", onEsc); }
-    });
+    var p = createPopup("Карточка руководителя", "popup-window-wide");
 
     fetch(API + "/api/users/card?key=" + encodeURIComponent(managerKey))
       .then(function (r) { return r.json(); })
       .then(function (data) {
-        header.querySelector(".popup-title").textContent =
+        p.header.querySelector(".popup-title").textContent =
           "Руководитель: " + (data.fio || managerKey);
 
         var html = "";
@@ -513,10 +469,10 @@
           html += "</div>";
         }
 
-        body.innerHTML = html;
+        p.body.innerHTML = html;
       })
       .catch(function (e) {
-        body.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
+        p.body.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
       });
   }
 

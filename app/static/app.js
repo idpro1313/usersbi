@@ -55,13 +55,6 @@
   var btnRefresh = document.getElementById("btn-refresh");
 
   // ─── Утилиты ───
-  function rowClass(source) {
-    if (!source) return "";
-    if (source.indexOf("AD") === 0) return "source-ad";
-    if (source === "MFA") return "source-mfa";
-    if (source === "Кадры") return "source-people";
-    return "";
-  }
 
   /**
    * Строит кэшированную строку для глобального поиска (один раз на запись).

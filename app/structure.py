@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord
 from app.config import AD_DOMAINS
-from app.utils import enabled_str
+from app.utils import build_member_dict, sort_members
 
 router = APIRouter(prefix="/api/structure", tags=["structure"])
 
@@ -96,22 +96,8 @@ def structure_members(
         ADRecord.distinguished_name.isnot(None),
     ).all()
 
-    members = []
-    for r in records:
-        if _parse_ou_path(r.distinguished_name or "") == target_parts:
-            members.append({
-                "login": r.login or "",
-                "display_name": r.display_name or "",
-                "email": r.email or "",
-                "enabled": enabled_str(r.enabled),
-                "password_last_set": r.password_last_set or "",
-                "title": r.title or "",
-                "department": r.department or "",
-                "company": r.company or "",
-                "staff_uuid": r.staff_uuid or "",
-            })
-
-    members.sort(key=lambda m: (m["display_name"] or m["login"]).lower())
+    members = [build_member_dict(r) for r in records if _parse_ou_path(r.distinguished_name or "") == target_parts]
+    sort_members(members)
     return {
         "path": "/".join(target_parts),
         "ou_name": target_parts[-1] if target_parts else "",

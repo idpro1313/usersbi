@@ -158,28 +158,26 @@ def _resolve_managers(ad_cards: list[dict], db: Session):
             c["manager_name"] = ""
         return
 
-    # Один запрос: все AD-записи, чей DN совпадает с одним из manager DN
-    all_ad = db.query(ADRecord).filter(
-        ADRecord.distinguished_name != "",
-        ADRecord.distinguished_name.isnot(None),
-    ).all()
+    # Один запрос: только AD-записи, чей DN совпадает с одним из manager DN
+    conditions = [ADRecord.distinguished_name.ilike(dn) for dn in mgr_dns]
+    mgr_recs = db.query(ADRecord).filter(or_(*conditions)).all()
 
     dn_to_info: dict[str, dict] = {}
-    for r in all_ad:
+    for r in mgr_recs:
         dn = norm(r.distinguished_name).lower()
-        if dn and dn in mgr_dns:
-            uuid = norm(r.staff_uuid)
-            login = norm(r.login)
-            key = uuid.lower() if uuid else f"_login_{login.lower()}" if login else ""
-            # Извлекаем CN из DN
-            cn = ""
-            dn_orig = norm(r.distinguished_name)
-            if dn_orig.upper().startswith("CN="):
-                cn = dn_orig.split(",")[0][3:]
-            dn_to_info[dn] = {
-                "key": key,
-                "name": norm(r.display_name) or cn or login,
-            }
+        if not dn:
+            continue
+        uuid = norm(r.staff_uuid)
+        login = norm(r.login)
+        key = uuid.lower() if uuid else f"_login_{login.lower()}" if login else ""
+        cn = ""
+        dn_orig = norm(r.distinguished_name)
+        if dn_orig.upper().startswith("CN="):
+            cn = dn_orig.split(",")[0][3:]
+        dn_to_info[dn] = {
+            "key": key,
+            "name": norm(r.display_name) or cn or login,
+        }
 
     for c in ad_cards:
         mgr = c.get("manager", "")
@@ -190,11 +188,13 @@ def _resolve_managers(ad_cards: list[dict], db: Session):
 
 def _build_ad_cards(ad_recs, logins):
     """Строит список карточек AD-записей."""
+    logins_set = {l.lower() for l in logins}
     cards = []
     for r in ad_recs:
         login = norm(r.login)
-        if login.lower() not in [l.lower() for l in logins]:
+        if login.lower() not in logins_set:
             logins.append(login.lower())
+            logins_set.add(login.lower())
         cards.append({
             "ad_source": r.ad_source or "",
             "domain": AD_LABELS.get(r.ad_source, r.ad_source or ""),
@@ -231,6 +231,7 @@ def _fetch_mfa_cards(logins: list[str], db: Session):
         conditions.append(MFARecord.identity.ilike(f"%\\{login}"))   # DOMAIN\login
     recs = db.query(MFARecord).filter(or_(*conditions)).all()
     seen_ids = set()
+    logins_lower = {l.lower() for l in logins}
     cards = []
     for r in recs:
         if r.id in seen_ids:
@@ -238,7 +239,7 @@ def _fetch_mfa_cards(logins: list[str], db: Session):
         # Дополнительная проверка: identity (без домена) должен точно совпадать с одним из логинов
         ident = norm(r.identity)
         ident_clean = ident.split("\\")[-1].lower() if "\\" in ident else ident.lower()
-        if ident_clean not in [l.lower() for l in logins]:
+        if ident_clean not in logins_lower:
             continue
         seen_ids.add(r.id)
         cards.append({

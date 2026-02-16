@@ -86,3 +86,31 @@ def safe_date(x) -> str:
         return "never"
     s = re.split(r"\s+", s)[0]
     return s
+
+
+def build_member_dict(r, *, include_location: bool = False, include_domain_label: str = "") -> dict:
+    """
+    Общая функция формирования словаря участника из ADRecord.
+    Используется в groups, structure, org для единообразия.
+    """
+    d = {
+        "login": norm(r.login),
+        "display_name": norm(r.display_name),
+        "email": norm(r.email),
+        "enabled": enabled_str(r.enabled),
+        "password_last_set": norm(r.password_last_set),
+        "title": norm(r.title),
+        "department": norm(r.department),
+        "company": norm(r.company),
+        "staff_uuid": norm(r.staff_uuid),
+    }
+    if include_location:
+        d["location"] = norm(r.location)
+    if include_domain_label:
+        d["domain"] = include_domain_label
+    return d
+
+
+def sort_members(members: list[dict]) -> None:
+    """Сортировка списка участников по ФИО/логину (in-place)."""
+    members.sort(key=lambda m: (m.get("display_name") or m.get("login") or "").lower())

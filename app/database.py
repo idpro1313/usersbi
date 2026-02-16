@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, Text, text, inspect as sa_inspect
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, text, inspect as sa_inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import DATABASE_URL
 

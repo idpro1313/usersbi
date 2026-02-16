@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord
-from app.config import AD_DOMAINS, AD_SOURCE_LABELS
-from app.utils import norm, enabled_str
+from app.config import AD_SOURCE_LABELS
+from app.utils import norm, build_member_dict, sort_members
 
 router = APIRouter(prefix="/api/org", tags=["org"])
 
@@ -68,23 +68,12 @@ def org_members(
 
     records = q.all()
 
-    members = []
-    for r in records:
-        members.append({
-            "login": norm(r.login),
-            "display_name": norm(r.display_name),
-            "email": norm(r.email),
-            "enabled": enabled_str(r.enabled),
-            "password_last_set": norm(r.password_last_set),
-            "title": norm(r.title),
-            "department": norm(r.department),
-            "company": norm(r.company),
-            "location": norm(r.location),
-            "domain": AD_SOURCE_LABELS.get(r.ad_source, r.ad_source or ""),
-            "staff_uuid": norm(r.staff_uuid),
-        })
-
-    members.sort(key=lambda m: (m["display_name"] or m["login"]).lower())
+    members = [
+        build_member_dict(r, include_location=True,
+                          include_domain_label=AD_SOURCE_LABELS.get(r.ad_source, r.ad_source or ""))
+        for r in records
+    ]
+    sort_members(members)
     return {
         "company": company, "department": department,
         "members": members, "count": len(members),
