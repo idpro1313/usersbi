@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { fetchJSON } from '../api'
 import { useExport } from '../composables/useExport'
-import { escapeHtml, dateSortKey } from '../utils/format'
+import { dateSortKey } from '../utils/format'
 
 const COLUMNS = [
   { key: 'source',             label: 'Источник' },
@@ -238,7 +238,7 @@ onMounted(async () => {
 
   <!-- Table -->
   <div class="table-container" ref="tableContainer" @scroll="onScroll">
-    <table class="data-table">
+    <table class="data-table consolidated-table">
       <thead>
         <!-- Labels row -->
         <tr class="thead-labels">

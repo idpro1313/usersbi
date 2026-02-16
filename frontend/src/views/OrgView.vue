@@ -3,7 +3,6 @@ import { ref, computed, onMounted } from 'vue'
 import MembersTable from '../components/MembersTable.vue'
 import { fetchJSON } from '../api'
 import { useExport } from '../composables/useExport'
-import { escapeHtml } from '../utils/format'
 
 const COLUMNS = [
   { key: 'login',        label: 'Логин' },

@@ -3,7 +3,6 @@ import { ref, onMounted } from 'vue'
 import PopupOverlay from './PopupOverlay.vue'
 import FieldsTable from './FieldsTable.vue'
 import { fetchJSON } from '../api'
-import { escapeHtml } from '../utils/format'
 
 const props = defineProps({
   dn: { type: String, required: true },

@@ -438,8 +438,8 @@ html, body {
   color: var(--text);
 }
 
-/* Колонка "#" — прилипает слева (50px) */
-.data-table .col-num {
+/* Колонка "#" — прилипает слева (только сводная таблица) */
+.consolidated-table .col-num {
   position: sticky;
   left: 0;
   z-index: 3;
@@ -449,12 +449,12 @@ html, body {
   font-size: 0.7rem;
   color: var(--muted);
 }
-.data-table th.col-num { z-index: 5; background: var(--surface); }
-.data-table td.col-num { background: var(--bg); }
+.consolidated-table th.col-num { z-index: 5; background: var(--surface); }
+.consolidated-table td.col-num { background: var(--bg); }
 
 /* Вторая колонка (Источник) — прилипает после "#" */
-.data-table th:nth-child(2),
-.data-table td:nth-child(2) {
+.consolidated-table th:nth-child(2),
+.consolidated-table td:nth-child(2) {
   position: sticky;
   left: 50px;
   z-index: 3;
@@ -462,12 +462,12 @@ html, body {
   max-width: 72px;
 }
 
-.data-table th:nth-child(2) { z-index: 5; background: var(--surface); }
-.data-table td:nth-child(2) { background: var(--bg); font-weight: 500; }
+.consolidated-table th:nth-child(2) { z-index: 5; background: var(--surface); }
+.consolidated-table td:nth-child(2) { background: var(--bg); font-weight: 500; }
 
 /* Третья колонка (Логин) — прилипает после Источника */
-.data-table th:nth-child(3),
-.data-table td:nth-child(3) {
+.consolidated-table th:nth-child(3),
+.consolidated-table td:nth-child(3) {
   position: sticky;
   left: 122px;
   z-index: 3;
@@ -475,8 +475,8 @@ html, body {
   border-right: 2px solid var(--accent);
 }
 
-.data-table th:nth-child(3) { z-index: 5; background: var(--surface); }
-.data-table td:nth-child(3) { background: var(--bg); }
+.consolidated-table th:nth-child(3) { z-index: 5; background: var(--surface); }
+.consolidated-table td:nth-child(3) { background: var(--bg); }
 
 .data-table tbody tr:hover td {
   background: var(--hover-bg);

@@ -4,7 +4,6 @@ import PopupOverlay from './PopupOverlay.vue'
 import FieldsTable from './FieldsTable.vue'
 import AdSections from './AdSections.vue'
 import { fetchJSON } from '../api'
-import { escapeHtml } from '../utils/format'
 
 const props = defineProps({
   userKey: { type: String, required: true },

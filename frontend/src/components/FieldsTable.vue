@@ -1,6 +1,4 @@
 <script setup>
-import { escapeHtml } from '../utils/format'
-
 const props = defineProps({
   pairs: { type: Array, required: true },
 })

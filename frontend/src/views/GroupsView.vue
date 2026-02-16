@@ -4,7 +4,6 @@ import { useRoute } from 'vue-router'
 import MembersTable from '../components/MembersTable.vue'
 import { fetchJSON } from '../api'
 import { useExport } from '../composables/useExport'
-import { escapeHtml } from '../utils/format'
 
 const COLUMNS = [
   { key: 'login',        label: 'Логин' },
@@ -29,7 +28,6 @@ const groupsTitle = ref('')
 const groupsCount = ref('')
 const searchText = ref('')
 const { exportToXLSX } = useExport()
-const membersTableRef = ref(null)
 
 async function loadTree() {
   try {
@@ -126,7 +124,7 @@ onMounted(async () => {
         </button>
       </div>
       <div class="groups-table-wrap">
-        <MembersTable ref="membersTableRef"
+        <MembersTable
           :columns="COLUMNS" :rows="members" :dateKeys="DATE_KEYS"
           :loading="membersLoading" emptyMessage="Нет участников" />
       </div>
