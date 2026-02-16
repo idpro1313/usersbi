@@ -166,7 +166,7 @@
         html += renderFieldsTable([
           ["ФИО", a.display_name], ["Email", a.email],
           ["Телефон", a.phone], ["Мобильный", a.mobile],
-          ["Активна", a.enabled], ["Смена пароля", a.password_last_set],
+          ["Активна", a.enabled], ["Смена пароля", a.password_last_set], ["Требуется смена", a.must_change_password],
           ["Срок УЗ", a.account_expires], ["Должность", a.title],
           ["Отдел", a.department], ["Компания", a.company],
           ["Расположение", a.location],

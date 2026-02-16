@@ -11,6 +11,7 @@
     { key: "domain",             label: "Домен" },
     { key: "uz_active",          label: "УЗ активна" },
     { key: "password_last_set",  label: "Пароль" },
+    { key: "must_change_password", label: "Треб. смена" },
     { key: "account_expires",    label: "Срок УЗ" },
     { key: "staff_uuid",         label: "StaffUUID" },
     { key: "mfa_enabled",        label: "MFA" },

@@ -46,6 +46,7 @@ class ADRecord(Base):
     location = Column(String(255), default="")          # поле "l" в файле
     employee_number = Column(String(100), default="")
     info = Column(Text, default="")
+    must_change_password = Column(String(20), default="")
     groups = Column(Text, default="")
 
 

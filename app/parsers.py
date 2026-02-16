@@ -129,6 +129,7 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "",
                 "location": norm(r.get("location", "")),
                 "employee_number": norm(r.get("employee_number", "")),
                 "info": norm(r.get("info", "")),
+                "must_change_password": norm(r.get("must_change_password", "")),
                 "groups": norm(r.get("groups", "")),
             })
         return rows, None, skipped

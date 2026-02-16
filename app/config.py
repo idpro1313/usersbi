@@ -82,6 +82,7 @@ AD_COLUMNS = {
     "location": "l",
     "employee_number": "employeeNumber",
     "info": "info",
+    "must_change_password": "MustChangePassword",
     "groups": "groups",
 }
 

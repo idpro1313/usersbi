@@ -316,6 +316,7 @@ async def export_xlsx(db: Session = Depends(get_db)):
         "source": "Источник", "account_type": "Тип УЗ",
         "login": "Логин", "domain": "Домен",
         "uz_active": "УЗ активна", "password_last_set": "Смена пароля",
+        "must_change_password": "Треб. смена пароля",
         "account_expires": "Срок УЗ", "staff_uuid": "StaffUUID",
         "mfa_enabled": "Есть MFA", "mfa_created_at": "MFA подключен",
         "mfa_last_login": "Последний вход MFA", "mfa_authenticators": "Способ MFA",

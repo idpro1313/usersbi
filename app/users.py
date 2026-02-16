@@ -215,6 +215,7 @@ def _build_ad_cards(ad_recs, logins):
             "distinguished_name": norm(r.distinguished_name),
             "groups": norm(r.groups),
             "info": norm(r.info),
+            "must_change_password": norm(r.must_change_password),
             "staff_uuid": norm(r.staff_uuid),
         })
     return cards, logins
