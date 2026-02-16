@@ -312,6 +312,38 @@ def _fetch_mfa_cards(logins: list[str], db: Session):
     return cards
 
 
+@router.get("/by-dn")
+def user_by_dn(
+    dn: str = Query(..., description="Distinguished Name объекта AD"),
+    db: Session = Depends(get_db),
+):
+    """Поиск пользователя по Distinguished Name. Возвращает ключ для открытия карточки."""
+    dn_clean = dn.strip()
+    if not dn_clean:
+        return {"found": False}
+
+    rec = db.query(ADRecord).filter(
+        ADRecord.distinguished_name.ilike(dn_clean)
+    ).first()
+    if not rec:
+        return {"found": False}
+
+    uuid = norm(rec.staff_uuid)
+    login = norm(rec.login)
+    key = uuid.lower() if uuid else f"_login_{login.lower()}" if login else ""
+    if not key:
+        return {"found": False}
+
+    return {
+        "found": True,
+        "key": key,
+        "display_name": norm(rec.display_name),
+        "login": login,
+        "domain": AD_LABELS.get(rec.ad_source, rec.ad_source or ""),
+        "enabled": enabled_str(rec.enabled),
+    }
+
+
 @router.get("/card")
 def user_card(
     key: str = Query(..., description="Ключ пользователя (staff_uuid или internal key)"),

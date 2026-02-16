@@ -163,6 +163,17 @@
     return groups.map(function (g) { return esc(g); }).join("; ");
   }
 
+  function renderDnLinks(dnString) {
+    if (!dnString) return "";
+    var parts = dnString.split(";").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (!parts.length) return "";
+    return parts.map(function (dn) {
+      var cn = dn.match(/^CN=([^,]+)/i);
+      var display = cn ? cn[1] : dn;
+      return "<a class=\"ucard-link dn-link\" href=\"#\" data-dn=\"" + esc(dn) + "\">" + esc(display) + "</a>";
+    }).join("; ");
+  }
+
   function renderAdSections(a) {
     var h = "";
     h += "<div class=\"ucard-ad-section-label\">Основные</div>";
@@ -176,7 +187,8 @@
     h += renderFieldsTable([
       ["Должность", a.title], ["Отдел", a.department], ["Компания", a.company],
       ["Тип сотрудника", a.employee_type], ["Расположение", a.location],
-      ["Адрес", a.street_address], ["Руководитель", a.manager_name || a.manager],
+      ["Адрес", a.street_address],
+      ["Руководитель", { html: renderDnLinks(a.manager) }],
       ["Таб. номер", a.employee_number],
     ]);
     h += "<div class=\"ucard-ad-section-label\">Статус</div>";
@@ -238,9 +250,9 @@
     h += "<div class=\"ucard-ad-section-label\">Связи</div>";
     h += renderFieldsTable([
       ["Группы", { html: renderGroupsList(a.groups) }],
-      ["Подчинённые", a.direct_reports],
-      ["Управляемые объекты", a.managed_objects],
-      ["Основная группа", a.primary_group],
+      ["Подчинённые", { html: renderDnLinks(a.direct_reports) }],
+      ["Управляемые объекты", { html: renderDnLinks(a.managed_objects) }],
+      ["Основная группа", { html: renderDnLinks(a.primary_group) }],
     ]);
     if (a.info) {
       h += "<div class=\"ucard-ad-section-label\">Прочее</div>";
@@ -248,6 +260,44 @@
     }
     return h;
   }
+
+  function openDnPopup(dn, displayName) {
+    fetch(API + "/api/users/by-dn?dn=" + encodeURIComponent(dn))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.found && data.key) {
+          openUserPopup(data.key, data.display_name || displayName);
+        } else {
+          var p = createPopup(displayName || "Объект AD");
+          var cn = dn.match(/^CN=([^,]+)/i);
+          var name = cn ? cn[1] : dn;
+          var ous = [];
+          var re = /OU=([^,]+)/gi;
+          var match;
+          while ((match = re.exec(dn)) !== null) ous.push(match[1]);
+          ous.reverse();
+          var html = "<table class=\"ucard-fields\">";
+          html += "<tr><td class=\"ucard-label\">Имя (CN)</td><td>" + esc(name) + "</td></tr>";
+          if (ous.length) html += "<tr><td class=\"ucard-label\">OU</td><td>" + esc(ous.join(" › ")) + "</td></tr>";
+          html += "<tr><td class=\"ucard-label\">Полный DN</td><td class=\"ucard-val-long\">" + esc(dn) + "</td></tr>";
+          html += "</table>";
+          html += "<p class=\"muted-text\" style=\"margin-top:12px\">Объект не найден среди учётных записей пользователей в базе данных.</p>";
+          p.body.innerHTML = html;
+        }
+      })
+      .catch(function (e) {
+        var p = createPopup(displayName || "Ошибка");
+        p.body.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
+      });
+  }
+
+  // DN-ссылки в popup-ах
+  document.addEventListener("click", function (e) {
+    var link = e.target.closest(".popup-overlay [data-dn]");
+    if (!link) return;
+    e.preventDefault();
+    openDnPopup(link.dataset.dn, link.textContent.trim());
+  });
 
   function openUserPopup(key, displayName) {
     var p = createPopup(displayName || "Карточка УЗ");

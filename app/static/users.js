@@ -14,10 +14,15 @@
   var cardWrap = document.getElementById("user-card");
   var hideDisabledCb = document.getElementById("hide-disabled");
 
-  // ─── Рендер списка пользователей (с event delegation) ───
+  // ─── Рендер списка с lazy-подгрузкой ───
+  var CHUNK = 100;
+  var filteredUsers = [];
+  var renderedUsers = 0;
+
   function renderList(filter) {
     filter = (filter || "").trim().toLowerCase();
     sidebarList.innerHTML = "";
+    renderedUsers = 0;
 
     var base = allUsers;
     var hiddenCount = 0;
@@ -25,28 +30,32 @@
       base = allUsers.filter(function (u) { return !u.all_disabled; });
       hiddenCount = allUsers.length - base.length;
     }
-    var filtered = base;
+    filteredUsers = base;
     if (filter) {
-      filtered = base.filter(function (u) {
+      filteredUsers = base.filter(function (u) {
         return [u.fio, u.staff_uuid].concat(u.logins).join(" ").toLowerCase().indexOf(filter) !== -1;
       });
     }
 
-    var info = "Найдено: " + filtered.length + " из " + allUsers.length;
+    var info = "Найдено: " + filteredUsers.length + " из " + allUsers.length;
     if (hiddenCount > 0) info += " (скрыто " + hiddenCount + " откл.)";
     sidebarInfo.textContent = info;
 
-    if (!filtered.length) {
+    if (!filteredUsers.length) {
       sidebarList.innerHTML = "<p class=\"muted-text\">Нет результатов</p>";
       return;
     }
 
-    var fragment = document.createDocumentFragment();
-    var LIMIT = 500;
-    var shown = Math.min(filtered.length, LIMIT);
+    renderUserChunk();
+  }
 
-    for (var i = 0; i < shown; i++) {
-      var u = filtered[i];
+  function renderUserChunk() {
+    var end = Math.min(renderedUsers + CHUNK, filteredUsers.length);
+    if (renderedUsers >= end) return;
+
+    var fragment = document.createDocumentFragment();
+    for (var i = renderedUsers; i < end; i++) {
+      var u = filteredUsers[i];
       var item = document.createElement("div");
       item.className = "user-list-item";
       if (u.all_disabled) item.classList.add("user-disabled");
@@ -65,16 +74,23 @@
 
       fragment.appendChild(item);
     }
-
     sidebarList.appendChild(fragment);
-
-    if (filtered.length > LIMIT) {
-      var more = document.createElement("p");
-      more.className = "muted-text";
-      more.textContent = "Показано " + LIMIT + " из " + filtered.length + " — уточните поиск";
-      sidebarList.appendChild(more);
-    }
+    renderedUsers = end;
   }
+
+  // Lazy-scroll: подгрузка при прокрутке списка
+  var scrollTimer = null;
+  sidebarList.addEventListener("scroll", function () {
+    if (scrollTimer) return;
+    scrollTimer = setTimeout(function () {
+      scrollTimer = null;
+      if (renderedUsers >= filteredUsers.length) return;
+      var el = sidebarList;
+      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+        renderUserChunk();
+      }
+    }, 50);
+  });
 
   // Event delegation для клика по пользователю
   sidebarList.addEventListener("click", function (e) {
@@ -320,9 +336,9 @@
     h += "<div class=\"ucard-ad-section-label\">Связи</div>";
     h += renderFieldsTable([
       ["Группы", { html: renderGroupLinks(a.groups, a.ad_source) }],
-      ["Подчинённые", a.direct_reports],
-      ["Управляемые объекты", a.managed_objects],
-      ["Основная группа", a.primary_group],
+      ["Подчинённые", { html: renderDnLinks(a.direct_reports) }],
+      ["Управляемые объекты", { html: renderDnLinks(a.managed_objects) }],
+      ["Основная группа", { html: renderDnLinks(a.primary_group) }],
     ]);
     // Прочее
     h += "<div class=\"ucard-ad-section-label\">Прочее</div>";
@@ -371,6 +387,17 @@
     return "<a class=\"ucard-link\" href=\"#\" data-popup-url=\"" + esc(url) + "\" data-popup-type=\"ou\" data-popup-domain=\"" + esc(adSource) + "\" data-popup-name=\"" + esc(path) + "\">" + esc(ous.join(" › ")) + "</a>";
   }
 
+  function renderDnLinks(dnString) {
+    if (!dnString) return "";
+    var parts = dnString.split(";").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (!parts.length) return "";
+    return parts.map(function (dn) {
+      var cn = dn.match(/^CN=([^,]+)/i);
+      var display = cn ? cn[1] : dn;
+      return "<a class=\"ucard-link dn-link\" href=\"#\" data-dn=\"" + esc(dn) + "\">" + esc(display) + "</a>";
+    }).join("; ");
+  }
+
   function renderFieldsTable(pairs) {
     var rows = "";
     for (var i = 0; i < pairs.length; i++) {
@@ -391,8 +418,15 @@
     return "<table class=\"ucard-fields\">" + rows + "</table>";
   }
 
-  // ─── Popup для групп / OU / руководитель ───
+  // ─── Popup для групп / OU / руководитель / DN-ссылки ───
   cardWrap.addEventListener("click", function (e) {
+    // DN-ссылки
+    var dnLink = e.target.closest("[data-dn]");
+    if (dnLink) {
+      e.preventDefault();
+      openDnPopup(dnLink.dataset.dn, dnLink.textContent.trim());
+      return;
+    }
     var link = e.target.closest("[data-popup-type]");
     if (!link) return;
     e.preventDefault();
@@ -435,6 +469,36 @@
       if (e.key === "Escape") { close(); document.removeEventListener("keydown", onEsc); }
     });
     return { overlay: overlay, header: header, body: body, close: close };
+  }
+
+  function openDnPopup(dn, displayName) {
+    fetch(API + "/api/users/by-dn?dn=" + encodeURIComponent(dn))
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.found && data.key) {
+          openManagerPopup(data.key);
+        } else {
+          var p = createPopup(displayName || "Объект AD", "popup-window-wide");
+          var cn = dn.match(/^CN=([^,]+)/i);
+          var name = cn ? cn[1] : dn;
+          var ous = [];
+          var re = /OU=([^,]+)/gi;
+          var match;
+          while ((match = re.exec(dn)) !== null) ous.push(match[1]);
+          ous.reverse();
+          var html = "<table class=\"ucard-fields\">";
+          html += "<tr><td class=\"ucard-label\">Имя (CN)</td><td>" + esc(name) + "</td></tr>";
+          if (ous.length) html += "<tr><td class=\"ucard-label\">OU</td><td>" + esc(ous.join(" › ")) + "</td></tr>";
+          html += "<tr><td class=\"ucard-label\">Полный DN</td><td class=\"ucard-val-long\">" + esc(dn) + "</td></tr>";
+          html += "</table>";
+          html += "<p class=\"muted-text\" style=\"margin-top:12px\">Объект не найден среди учётных записей пользователей в базе данных.</p>";
+          p.body.innerHTML = html;
+        }
+      })
+      .catch(function (e) {
+        var p = createPopup(displayName || "Ошибка");
+        p.body.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
+      });
   }
 
   function openMembersPopup(type, domain, name) {
@@ -532,7 +596,7 @@
           html += "</div>";
         }
 
-        // AD
+        // AD (полная карточка с секциями)
         if (data.ad && data.ad.length) {
           html += "<div class=\"ucard-section\">";
           html += "<h3 class=\"ucard-section-title\">Учётные записи AD (" + data.ad.length + ")</h3>";
@@ -541,12 +605,7 @@
             var inactive = a.enabled === "Нет";
             html += "<div class=\"ucard-ad-block" + (inactive ? " uz-inactive" : "") + "\">";
             html += "<div class=\"ucard-ad-domain\">" + esc(a.domain) + " — " + esc(a.login) + "</div>";
-            html += renderFieldsTable([
-              ["ФИО", a.display_name], ["Email", a.email],
-              ["Активна", a.enabled], ["Должность", a.title],
-              ["Отдел", a.department], ["Компания", a.company],
-              ["Город", a.location],
-            ]);
+            html += renderAdSections(a);
             html += "</div>";
           }
           html += "</div>";
@@ -574,6 +633,14 @@
         p.body.innerHTML = "<p class=\"muted-text\">Ошибка: " + esc(e.message) + "</p>";
       });
   }
+
+  // DN-ссылки внутри popup-ов (popup-overlay на document.body)
+  document.addEventListener("click", function (e) {
+    var link = e.target.closest(".popup-overlay [data-dn]");
+    if (!link) return;
+    e.preventDefault();
+    openDnPopup(link.dataset.dn, link.textContent.trim());
+  });
 
   userSearch.addEventListener("input", function () {
     renderList(userSearch.value);
