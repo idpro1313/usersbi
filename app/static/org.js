@@ -25,6 +25,7 @@
   var sortDir = "asc";
   var selectedCompany = null;
   var selectedDepartment = null;
+  var hideDisabled = false;
 
   // ─── DOM ───
   var sidebarTree = document.getElementById("sidebar-tree");
@@ -34,6 +35,7 @@
   var thead = document.getElementById("members-thead");
   var tbody = document.getElementById("members-tbody");
   var btnExport = document.getElementById("btn-export");
+  var hideDisabledCb = document.getElementById("hide-disabled");
 
   // ─── Сортировка ───
   function onSort(key) {
@@ -48,8 +50,24 @@
   }
 
   function renderMembers() {
-    var rows = TableUtils.sortRows(cachedMembers, sortCol, sortDir, DATE_KEYS);
+    var data = cachedMembers;
+    if (hideDisabled) {
+      data = data.filter(function (m) {
+        return (m.enabled || "").toLowerCase() !== "нет";
+      });
+    }
+    var rows = TableUtils.sortRows(data, sortCol, sortDir, DATE_KEYS);
     TableUtils.renderMembersTable(tbody, rows, COLUMNS, "Нет пользователей");
+    updateCount(data.length);
+  }
+
+  function updateCount(visibleCount) {
+    var total = cachedMembers.length;
+    var text = visibleCount + " чел.";
+    if (hideDisabled && visibleCount < total) {
+      text += " (скрыто " + (total - visibleCount) + " откл.)";
+    }
+    orgCount.textContent = text;
   }
 
   // ─── Загрузка участников ───
@@ -71,7 +89,6 @@
       var r = await fetch(url);
       var data = await r.json();
       cachedMembers = data.members || [];
-      orgCount.textContent = data.count + " чел.";
       sortCol = null;
       sortDir = "asc";
       TableUtils.updateSortIcons(thead, sortCol, sortDir);
@@ -86,20 +103,27 @@
   }
 
   function highlightSelected() {
-    var items = sidebarTree.querySelectorAll(".tree-org-item");
-    for (var i = 0; i < items.length; i++) {
-      var el = items[i];
-      var match = el.dataset.company === (selectedCompany || "")
-        && el.dataset.department === (selectedDepartment || "");
-      if (match) {
-        el.classList.add("active");
+    var headers = sidebarTree.querySelectorAll(".tree-org-header");
+    for (var i = 0; i < headers.length; i++) {
+      var h = headers[i];
+      if (h.dataset.company === (selectedCompany || "") && !selectedDepartment) {
+        h.classList.add("active");
       } else {
-        el.classList.remove("active");
+        h.classList.remove("active");
+      }
+    }
+    var depts = sidebarTree.querySelectorAll(".tree-org-dept");
+    for (var j = 0; j < depts.length; j++) {
+      var d = depts[j];
+      if (d.dataset.company === (selectedCompany || "") && d.dataset.department === (selectedDepartment || "")) {
+        d.classList.add("active");
+      } else {
+        d.classList.remove("active");
       }
     }
   }
 
-  // ─── Построение дерева Company → Department (без домена) ───
+  // ─── Построение дерева Company → Department ───
   function renderTree(filter) {
     filter = (filter || "").trim().toLowerCase();
     sidebarTree.innerHTML = "";
@@ -108,8 +132,6 @@
       sidebarTree.innerHTML = "<p class=\"muted-text\">Нет данных AD</p>";
       return;
     }
-
-    var fragment = document.createDocumentFragment();
 
     var companies = treeData;
     if (filter) {
@@ -126,30 +148,37 @@
       return;
     }
 
-    companies.forEach(function (comp) {
-      var compEl = document.createElement("div");
-      compEl.className = "tree-org-company";
+    var fragment = document.createDocumentFragment();
 
-      var compRow = document.createElement("div");
-      compRow.className = "tree-ou-row";
+    companies.forEach(function (comp) {
+      var domainEl = document.createElement("div");
+      domainEl.className = "tree-domain";
+
+      // Заголовок компании (стиль как у доменов в Группах/OU)
+      var header = document.createElement("div");
+      header.className = "tree-domain-header tree-org-header";
+      header.dataset.company = comp.name;
 
       var arrow = document.createElement("span");
       arrow.className = "tree-arrow";
-      arrow.innerHTML = "&#9654;";
-      compRow.appendChild(arrow);
+      arrow.innerHTML = "&#9660;";
+      header.appendChild(arrow);
 
-      var compLabel = document.createElement("span");
-      compLabel.className = "tree-org-item";
-      compLabel.dataset.company = comp.name;
-      compLabel.dataset.department = "";
-      compLabel.innerHTML = esc(comp.name)
-        + " <span class=\"tree-group-count\">(" + comp.count + ")</span>";
-      compRow.appendChild(compLabel);
-      compEl.appendChild(compRow);
+      var nameSpan = document.createElement("span");
+      nameSpan.className = "tree-org-name";
+      nameSpan.textContent = comp.name;
+      header.appendChild(nameSpan);
 
-      var deptWrap = document.createElement("div");
-      deptWrap.className = "tree-ou-children";
-      deptWrap.style.display = "none";
+      var badge = document.createElement("span");
+      badge.className = "tree-badge";
+      badge.textContent = comp.departments.length + " отд. / " + comp.count + " чел.";
+      header.appendChild(badge);
+
+      domainEl.appendChild(header);
+
+      // Список отделов (стиль как у групп)
+      var deptList = document.createElement("div");
+      deptList.className = "tree-group-list";
 
       var depts = comp.departments;
       if (filter) {
@@ -160,55 +189,44 @@
       }
 
       depts.forEach(function (dept) {
-        var deptRow = document.createElement("div");
-        deptRow.className = "tree-ou-row";
-
-        var spacer = document.createElement("span");
-        spacer.className = "tree-arrow-spacer";
-        deptRow.appendChild(spacer);
-
-        var deptLabel = document.createElement("span");
-        deptLabel.className = "tree-org-item";
-        deptLabel.dataset.company = comp.name;
-        deptLabel.dataset.department = dept.name;
-        deptLabel.innerHTML = esc(dept.name)
-          + " <span class=\"tree-group-count\">(" + dept.count + ")</span>";
-        deptRow.appendChild(deptLabel);
-        deptWrap.appendChild(deptRow);
+        var item = document.createElement("div");
+        item.className = "tree-group tree-org-dept";
+        item.dataset.company = comp.name;
+        item.dataset.department = dept.name;
+        item.innerHTML = esc(dept.name) + " <span class=\"tree-group-count\">(" + dept.count + ")</span>";
+        deptList.appendChild(item);
       });
 
-      if (filter) {
-        deptWrap.style.display = "";
-        arrow.innerHTML = "&#9660;";
-      }
-
-      compEl.appendChild(deptWrap);
-      fragment.appendChild(compEl);
+      domainEl.appendChild(deptList);
+      fragment.appendChild(domainEl);
     });
 
     sidebarTree.appendChild(fragment);
+    highlightSelected();
   }
 
-  // Event delegation для дерева
+  // ─── Event delegation для дерева ───
   sidebarTree.addEventListener("click", function (e) {
-    var arrow = e.target.closest(".tree-arrow");
-    if (arrow) {
-      var row = arrow.closest(".tree-ou-row");
-      if (row) {
-        var nodeEl = row.parentElement;
-        var childContainer = nodeEl.querySelector(".tree-ou-children");
-        if (childContainer) {
-          var isHidden = childContainer.style.display === "none";
-          childContainer.style.display = isHidden ? "" : "none";
-          arrow.innerHTML = isHidden ? "&#9660;" : "&#9654;";
-        }
-      }
+    // Клик по отделу
+    var dept = e.target.closest(".tree-org-dept");
+    if (dept) {
+      loadMembers(dept.dataset.company || "", dept.dataset.department || "");
       return;
     }
 
-    var item = e.target.closest(".tree-org-item");
-    if (item) {
-      loadMembers(item.dataset.company || "", item.dataset.department || "");
+    // Клик по заголовку компании
+    var header = e.target.closest(".tree-org-header");
+    if (!header) return;
+
+    var arrowEl = e.target.closest(".tree-arrow");
+    if (arrowEl) {
+      // Стрелка → toggle collapse
+      var domainEl = header.closest(".tree-domain");
+      domainEl.classList.toggle("collapsed");
+      arrowEl.innerHTML = domainEl.classList.contains("collapsed") ? "&#9654;" : "&#9660;";
+    } else {
+      // Имя компании → загрузить всех сотрудников компании
+      loadMembers(header.dataset.company || "", "");
     }
   });
 
@@ -228,11 +246,29 @@
     renderTree(orgSearch.value);
   });
 
+  // ─── Галочка «Скрыть заблокированные» ───
+  if (hideDisabledCb) {
+    hideDisabledCb.addEventListener("change", function () {
+      hideDisabled = this.checked;
+      renderMembers();
+    });
+    hideDisabledCb.addEventListener("click", function () {
+      hideDisabled = this.checked;
+      renderMembers();
+    });
+  }
+
   // ─── Экспорт XLSX ───
   if (btnExport) {
     btnExport.onclick = function () {
       var name = (selectedDepartment || selectedCompany || "org").replace(/[\\/:*?"<>|]/g, "_");
-      AppUtils.exportToXLSX(COLUMNS, cachedMembers, "Org_" + name + ".xlsx", name);
+      var data = cachedMembers;
+      if (hideDisabled) {
+        data = data.filter(function (m) {
+          return (m.enabled || "").toLowerCase() !== "нет";
+        });
+      }
+      AppUtils.exportToXLSX(COLUMNS, data, "Org_" + name + ".xlsx", name);
     };
   }
 

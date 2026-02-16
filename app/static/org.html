@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Организация — Девелоника Пользователи</title>
   <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
-  <link rel="stylesheet" href="/static/style.css?v=2">
+  <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
 <body>
   <div class="layout">
@@ -17,6 +17,9 @@
       <aside class="groups-sidebar">
         <div class="sidebar-search">
           <input type="text" id="org-search" placeholder="Поиск компании / отдела…">
+        </div>
+        <div class="sidebar-controls">
+          <label class="sidebar-checkbox"><input type="checkbox" id="hide-disabled"><span>Скрыть заблокированные</span></label>
         </div>
         <div class="sidebar-tree" id="sidebar-tree">
           <p class="muted-text">Загрузка…</p>
@@ -46,6 +49,6 @@
   <script src="/static/utils.js?v=2"></script>
   <script src="/static/table-utils.js?v=2"></script>
   <script src="/static/nav.js?v=2"></script>
-  <script src="/static/org.js?v=2"></script>
+  <script src="/static/org.js?v=3"></script>
 </body>
 </html>

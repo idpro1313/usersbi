@@ -625,6 +625,27 @@ html, body {
   display: none;
 }
 
+/* ─── Дерево: заголовок компании (Организация) ─── */
+.tree-org-header {
+  cursor: pointer;
+}
+
+.tree-org-header.active {
+  background: var(--hover-bg);
+}
+
+.tree-org-header.active .tree-org-name {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tree-org-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ─── Дерево: группы ─── */
 .tree-group-list {
   padding-left: 0.5rem;

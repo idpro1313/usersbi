@@ -360,16 +360,16 @@
 
   function renderManagerLink(managerDn, managerKey, managerName) {
     if (!managerDn) return "";
-    // Извлекаем CN из DN для отображения
     var displayName = managerName || "";
     if (!displayName) {
       var cnMatch = managerDn.match(/^CN=([^,]+)/i);
       displayName = cnMatch ? cnMatch[1] : managerDn;
     }
-    if (!managerKey) {
-      return esc(displayName);
+    if (managerKey) {
+      return "<a class=\"ucard-link\" href=\"#\" data-popup-type=\"manager\" data-manager-key=\"" + esc(managerKey) + "\">" + esc(displayName) + "</a>";
     }
-    return "<a class=\"ucard-link\" href=\"#\" data-popup-type=\"manager\" data-manager-key=\"" + esc(managerKey) + "\">" + esc(displayName) + "</a>";
+    // Ключ не найден бэкендом — делаем DN-ссылку с поиском через API
+    return renderDnLinks(managerDn);
   }
 
   function renderOuLink(dn, adSource) {
