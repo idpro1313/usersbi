@@ -375,6 +375,7 @@ html, body {
 /* Закреплённые заголовки — два ряда: метки и фильтры */
 .data-table th {
   position: sticky;
+  top: 0;
   background: var(--surface);
   color: var(--muted);
   font-weight: 500;
