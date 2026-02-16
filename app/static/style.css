@@ -502,10 +502,9 @@ html, body {
   color: var(--inactive-color);
 }
 
-/* Сервисные УЗ — курсив, приглушённый стиль */
+/* Сервисные УЗ — жёлтый цвет Девелоники */
 .uz-service td {
-  font-style: italic;
-  opacity: 0.75;
+  color: var(--warn);
 }
 
 .muted-text {
