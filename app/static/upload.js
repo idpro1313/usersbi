@@ -1,11 +1,21 @@
 (function () {
   var API = "";
+  var adDomains = ["izhevsk", "kostroma", "moscow"];
+  var adCityNames = { izhevsk: "AD Ижевск", kostroma: "AD Кострома", moscow: "AD Москва" };
+  var ldapMode = false;
 
   function setStatus(el, ok, msg) {
+    if (!el) return;
     el.textContent = msg;
     el.className = "upload-status " + (ok ? "ok" : "err");
   }
 
+  function getStatusEl(key) {
+    if (ldapMode) return document.getElementById("status-ad-" + key);
+    return document.getElementById("status-ad-" + key + "-f");
+  }
+
+  // ─── Загрузка файлов ───
   async function upload(fileInput, endpoint, statusEl) {
     var file = fileInput.files[0];
     if (!file) return;
@@ -27,17 +37,100 @@
     }
   }
 
-  // AD домены
-  var adDomains = ["izhevsk", "kostroma", "moscow"];
-  var adFiles = {}, adBtns = {}, adStatuses = {};
+  // ─── LDAP-синхронизация ───
+  async function syncDomain(key) {
+    var statusEl = document.getElementById("status-ad-" + key);
+    setStatus(statusEl, true, "Синхронизация…");
+    try {
+      var r = await fetch(API + "/api/sync/ad/" + key, { method: "POST" });
+      var data = await r.json();
+      if (!r.ok) {
+        setStatus(statusEl, false, data.detail || "Ошибка синхронизации");
+        return;
+      }
+      setStatus(statusEl, true, "Синхронизировано: " + data.rows + " записей");
+      loadStats();
+    } catch (e) {
+      setStatus(statusEl, false, "Ошибка сети: " + e.message);
+    }
+  }
+
+  async function syncAll() {
+    adDomains.forEach(function (key) {
+      var statusEl = document.getElementById("status-ad-" + key);
+      setStatus(statusEl, true, "Синхронизация…");
+    });
+    try {
+      var r = await fetch(API + "/api/sync/ad", { method: "POST" });
+      var data = await r.json();
+      if (data.domains) {
+        adDomains.forEach(function (key) {
+          var statusEl = document.getElementById("status-ad-" + key);
+          var info = data.domains[key];
+          if (!info) return;
+          if (info.error) {
+            setStatus(statusEl, false, info.error);
+          } else if (info.skipped) {
+            setStatus(statusEl, false, "Пропущено: " + info.reason);
+          } else {
+            setStatus(statusEl, true, "Синхронизировано: " + info.rows + " записей");
+          }
+        });
+      }
+      loadStats();
+    } catch (e) {
+      adDomains.forEach(function (key) {
+        var statusEl = document.getElementById("status-ad-" + key);
+        setStatus(statusEl, false, "Ошибка сети: " + e.message);
+      });
+    }
+  }
+
+  // ─── Определение режима: LDAP или файлы ───
+  async function initMode() {
+    try {
+      var r = await fetch(API + "/api/sync/status");
+      var data = await r.json();
+      if (data.available && data.domains) {
+        var anyConfigured = false;
+        adDomains.forEach(function (key) {
+          if (data.domains[key] && data.domains[key].configured) {
+            anyConfigured = true;
+            var card = document.getElementById("ldap-card-" + key);
+            if (card) card.style.display = "";
+          }
+        });
+        if (anyConfigured) {
+          ldapMode = true;
+          document.getElementById("ldap-section").style.display = "";
+          document.getElementById("file-upload-section").style.display = "none";
+          return;
+        }
+      }
+    } catch (_) { /* LDAP не доступен — файловый режим */ }
+    ldapMode = false;
+  }
+
+  // ─── Привязка кнопок ───
+
+  // Файловая загрузка AD
   adDomains.forEach(function (key) {
-    adFiles[key] = document.getElementById("file-ad-" + key);
-    adBtns[key] = document.getElementById("btn-ad-" + key);
-    adStatuses[key] = document.getElementById("status-ad-" + key);
-    if (adBtns[key]) adBtns[key].onclick = function () { adFiles[key].click(); };
-    if (adFiles[key]) adFiles[key].onchange = function () { upload(adFiles[key], "/api/upload/ad/" + key, adStatuses[key]); };
+    var fileEl = document.getElementById("file-ad-" + key);
+    var btnEl = document.getElementById("btn-ad-" + key);
+    var statusEl = document.getElementById("status-ad-" + key + "-f");
+    if (btnEl) btnEl.onclick = function () { if (fileEl) fileEl.click(); };
+    if (fileEl) fileEl.onchange = function () { upload(fileEl, "/api/upload/ad/" + key, statusEl); };
   });
 
+  // LDAP-синхронизация AD
+  adDomains.forEach(function (key) {
+    var btn = document.getElementById("btn-sync-" + key);
+    if (btn) btn.onclick = function () { syncDomain(key); };
+  });
+  var btnSyncAll = document.getElementById("btn-sync-all");
+  if (btnSyncAll) btnSyncAll.onclick = syncAll;
+
+  // MFA + Кадры (только файлы)
   var fileMfa = document.getElementById("file-mfa");
   var filePeople = document.getElementById("file-people");
   var btnMfa = document.getElementById("btn-mfa");
@@ -49,7 +142,7 @@
   fileMfa.onchange = function () { upload(fileMfa, "/api/upload/mfa", statusMfa); };
   filePeople.onchange = function () { upload(filePeople, "/api/upload/people", statusPeople); };
 
-  // Статистика
+  // ─── Статистика ───
   var statsEl = document.getElementById("stats");
   async function loadStats() {
     try {
@@ -72,7 +165,7 @@
     }
   }
 
-  // Очистка
+  // ─── Очистка ───
   async function clearData(endpoint, label, statusEl) {
     if (!confirm("Очистить данные " + label + "?")) return;
     try {
@@ -89,10 +182,16 @@
     }
   }
 
-  var adCityNames = { izhevsk: "AD Ижевск", kostroma: "AD Кострома", moscow: "AD Москва" };
+  // Кнопки очистки AD (обе версии: LDAP и файловая)
   adDomains.forEach(function (key) {
-    var btn = document.getElementById("btn-clear-ad-" + key);
-    if (btn) btn.onclick = function () { clearData("/api/clear/ad/" + key, adCityNames[key], adStatuses[key]); };
+    var btn1 = document.getElementById("btn-clear-ad-" + key);
+    var btn2 = document.getElementById("btn-clear-ad-" + key + "-f");
+    var handler = function () {
+      var statusEl = getStatusEl(key);
+      clearData("/api/clear/ad/" + key, adCityNames[key], statusEl);
+    };
+    if (btn1) btn1.onclick = handler;
+    if (btn2) btn2.onclick = handler;
   });
 
   var btnClearMfa = document.getElementById("btn-clear-mfa");
@@ -118,5 +217,6 @@
     };
   }
 
-  loadStats();
+  // ─── Инициализация ───
+  initMode().then(loadStats);
 })();

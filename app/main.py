@@ -19,6 +19,7 @@ from pathlib import Path
 from app.database import init_db, get_db, Upload, ADRecord, MFARecord, PeopleRecord
 from app.parsers import parse_ad, parse_mfa, parse_people, get_last_parse_info
 from app.consolidation import build_consolidated
+from app.ldap_sync import sync_domain as ldap_sync_domain, is_available as ldap_is_available
 from app.config import AD_DOMAINS, AD_DOMAIN_DN, MAX_UPLOAD_SIZE, AUTH_USERNAME, AUTH_PASSWORD
 from app.groups import router as groups_router
 from app.structure import router as structure_router
@@ -219,6 +220,74 @@ async def upload_people(file: UploadFile = File(...), db: Session = Depends(get_
     db.bulk_insert_mappings(PeopleRecord, rows)
     db.commit()
     return {"ok": True, "rows": len(rows), "filename": file.filename}
+
+
+# ─── Синхронизация из AD по LDAP ─────────────────────────────
+
+@app.get("/api/sync/status")
+async def sync_status():
+    """Проверяет доступность LDAP-синхронизации."""
+    return ldap_is_available()
+
+
+@app.post("/api/sync/ad/{domain_key}")
+async def sync_ad_domain(domain_key: str, db: Session = Depends(get_db)):
+    """Синхронизирует один домен AD по LDAP."""
+    if domain_key not in AD_DOMAINS:
+        raise HTTPException(400, f"Неизвестный домен: {domain_key}")
+    city_name = AD_DOMAINS[domain_key]
+
+    rows, err = ldap_sync_domain(domain_key)
+    if err:
+        raise HTTPException(400, f"Ошибка синхронизации {city_name}: {err}")
+    if not rows:
+        raise HTTPException(400, f"Нет записей для домена {city_name}")
+
+    db.query(ADRecord).filter(ADRecord.ad_source == domain_key).delete()
+    db.query(Upload).filter(Upload.source == f"ad_{domain_key}").delete()
+    upload = Upload(source=f"ad_{domain_key}", filename=f"LDAP sync", row_count=len(rows))
+    db.add(upload)
+    db.flush()
+    for r in rows:
+        r["upload_id"] = upload.id
+        r["ad_source"] = domain_key
+    db.bulk_insert_mappings(ADRecord, rows)
+    db.commit()
+
+    return {"ok": True, "rows": len(rows), "domain": city_name, "source": "ldap"}
+
+
+@app.post("/api/sync/ad")
+async def sync_ad_all(db: Session = Depends(get_db)):
+    """Синхронизирует все настроенные домены AD по LDAP."""
+    results = {}
+    errors = []
+    for domain_key, city_name in AD_DOMAINS.items():
+        cfg = (ldap_is_available()).get("domains", {}).get(domain_key, {})
+        if not cfg.get("configured"):
+            results[domain_key] = {"city": city_name, "skipped": True, "reason": "Сервер не настроен"}
+            continue
+
+        rows, err = ldap_sync_domain(domain_key)
+        if err:
+            results[domain_key] = {"city": city_name, "error": err}
+            errors.append(f"{city_name}: {err}")
+            continue
+
+        db.query(ADRecord).filter(ADRecord.ad_source == domain_key).delete()
+        db.query(Upload).filter(Upload.source == f"ad_{domain_key}").delete()
+        upload = Upload(source=f"ad_{domain_key}", filename=f"LDAP sync", row_count=len(rows))
+        db.add(upload)
+        db.flush()
+        for r in rows:
+            r["upload_id"] = upload.id
+            r["ad_source"] = domain_key
+        db.bulk_insert_mappings(ADRecord, rows)
+
+        results[domain_key] = {"city": city_name, "rows": len(rows)}
+
+    db.commit()
+    return {"ok": not errors, "domains": results, "errors": errors}
 
 
 # ─── Сводная ────────────────────────────────────────────────
