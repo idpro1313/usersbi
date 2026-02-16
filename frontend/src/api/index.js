@@ -3,7 +3,10 @@
  */
 export async function fetchJSON(url) {
   const r = await fetch(url)
-  if (!r.ok) throw new Error('Сервер вернул ошибку ' + r.status)
+  if (!r.ok) {
+    const data = await r.json().catch(() => ({}))
+    throw new Error(data.detail || 'Сервер вернул ошибку ' + r.status)
+  }
   return r.json()
 }
 

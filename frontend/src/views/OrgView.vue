@@ -27,7 +27,6 @@ const selectedDepartment = ref(null)
 const hideDisabled = ref(false)
 const searchText = ref('')
 const orgTitle = ref('')
-const orgCount = ref('')
 const { exportToXLSX } = useExport()
 
 const visibleMembers = computed(() => {

@@ -10,7 +10,6 @@ const props = defineProps({
 })
 const emit = defineEmits(['close', 'open-card'])
 
-const found = ref(false)
 const error = ref('')
 const parsed = ref(null)
 
@@ -22,7 +21,6 @@ onMounted(async () => {
       emit('close')
       return
     }
-    found.value = false
     const cn = props.dn.match(/^CN=([^,]+)/i)
     const name = cn ? cn[1] : props.dn
     const ous = []

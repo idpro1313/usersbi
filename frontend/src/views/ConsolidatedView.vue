@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { fetchJSON } from '../api'
 import { useExport } from '../composables/useExport'
 import { dateSortKey } from '../utils/format'
@@ -190,6 +190,10 @@ function onScroll() {
     }
   }, 50)
 }
+
+onBeforeUnmount(() => {
+  if (scrollTimeout) { clearTimeout(scrollTimeout); scrollTimeout = null }
+})
 
 const { exportToXLSX } = useExport()
 function doExport() {

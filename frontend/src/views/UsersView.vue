@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import FieldsTable from '../components/FieldsTable.vue'
 import AdSections from '../components/AdSections.vue'
 import PopupOverlay from '../components/PopupOverlay.vue'
@@ -60,6 +60,10 @@ function onSidebarScroll(e) {
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) loadMore()
   }, 50)
 }
+
+onBeforeUnmount(() => {
+  if (scrollTimer) { clearTimeout(scrollTimer); scrollTimer = null }
+})
 
 async function loadList() {
   try {

@@ -135,9 +135,6 @@ onMounted(async () => {
   loadStats()
 })
 
-function statusKey(domain, isFile) {
-  return isFile ? domain + '-f' : domain
-}
 </script>
 
 <template>
