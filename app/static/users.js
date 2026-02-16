@@ -19,17 +19,22 @@
     filter = (filter || "").trim().toLowerCase();
     sidebarList.innerHTML = "";
 
-    var filtered = allUsers;
+    var base = allUsers;
+    var hiddenCount = 0;
     if (hideDisabled) {
-      filtered = filtered.filter(function (u) { return !u.all_disabled; });
+      base = allUsers.filter(function (u) { return !u.all_disabled; });
+      hiddenCount = allUsers.length - base.length;
     }
+    var filtered = base;
     if (filter) {
-      filtered = filtered.filter(function (u) {
+      filtered = base.filter(function (u) {
         return [u.fio, u.staff_uuid].concat(u.logins).join(" ").toLowerCase().indexOf(filter) !== -1;
       });
     }
 
-    sidebarInfo.textContent = "Найдено: " + filtered.length + " из " + allUsers.length;
+    var info = "Найдено: " + filtered.length + " из " + allUsers.length;
+    if (hiddenCount > 0) info += " (скрыто " + hiddenCount + " откл.)";
+    sidebarInfo.textContent = info;
 
     if (!filtered.length) {
       sidebarList.innerHTML = "<p class=\"muted-text\">Нет результатов</p>";
@@ -576,7 +581,11 @@
 
   if (hideDisabledCb) {
     hideDisabledCb.addEventListener("change", function () {
-      hideDisabled = hideDisabledCb.checked;
+      hideDisabled = this.checked;
+      renderList(userSearch.value);
+    });
+    hideDisabledCb.addEventListener("click", function () {
+      hideDisabled = this.checked;
       renderList(userSearch.value);
     });
   }
