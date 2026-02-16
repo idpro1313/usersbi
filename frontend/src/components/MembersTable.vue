@@ -49,7 +49,7 @@ defineExpose({ doExport })
 </script>
 
 <template>
-  <table class="data-table">
+  <table class="data-table members-table">
     <thead>
       <tr>
         <th v-for="col in columns" :key="col.key" class="sortable" @click="onSort(col.key)">
@@ -71,3 +71,21 @@ defineExpose({ doExport })
     </tbody>
   </table>
 </template>
+
+<style>
+.members-table th {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 4;
+  cursor: pointer;
+  user-select: none;
+}
+.members-table th:hover {
+  color: var(--accent);
+}
+.members-table th .sort-icon {
+  font-size: 0.65rem;
+  color: var(--accent);
+}
+</style>
