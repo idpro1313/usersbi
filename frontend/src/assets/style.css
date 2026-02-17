@@ -522,6 +522,98 @@ html, body {
   color: var(--text);
 }
 
+/* ─── Multi-select filter (discrepancies) ─────────────── */
+.disc-filter-wrap {
+  position: relative;
+}
+.disc-filter-btn {
+  width: 100%;
+  padding: 0.15rem 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: inherit;
+  cursor: pointer;
+  max-width: 180px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.disc-filter-btn:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.disc-filter-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+.disc-filter-arrow {
+  font-size: 0.7em;
+  opacity: 0.6;
+  flex-shrink: 0;
+}
+.disc-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 100;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  padding: 4px 0;
+  margin-top: 2px;
+}
+.disc-dropdown-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 2px 8px 4px;
+}
+.disc-dropdown-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.78rem;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0;
+}
+.disc-dropdown-link:hover { opacity: 0.7; }
+.disc-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+.disc-dropdown-item:hover {
+  background: var(--hover, rgba(0,0,0,.04));
+}
+.disc-dropdown-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  margin: 0;
+  flex-shrink: 0;
+}
+.disc-dropdown-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 8px;
+}
+
 /* Колонка "#" — прилипает слева (только сводная таблица) */
 .consolidated-table .col-num {
   position: sticky;

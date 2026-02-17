@@ -58,6 +58,10 @@ const colFilters = ref({})
 const globalFilter = ref('')
 const loading = ref(true)
 
+const discFilter = ref(new Set())
+const showDiscDropdown = ref(false)
+const discDropdownRef = ref(null)
+
 const tableContainer = ref(null)
 const searchCache = new Map()
 
@@ -96,18 +100,75 @@ function _applyColFilter(rows, key, f) {
   return rows.filter(row => String(row[key] ?? '') === f)
 }
 
+function _splitDisc(v) {
+  if (!v) return []
+  return String(v).split(';').map(s => s.trim()).filter(Boolean)
+}
+
+function _matchDisc(row) {
+  const sel = discFilter.value
+  if (sel.size === 0) return true
+  const v = row.discrepancies
+  if (sel.has('__NONE__') && _isEmpty(v)) return true
+  if (_isEmpty(v)) return false
+  const parts = _splitDisc(v)
+  return parts.some(p => sel.has(p))
+}
+
 function rowsFilteredExcept(excludeKey) {
   const gf = globalFilter.value.trim().toLowerCase()
   let rows = cachedRows.value
   if (gf) rows = rows.filter(row => getSearchString(row).indexOf(gf) !== -1)
   for (const col of COLUMNS) {
     if (col.key === excludeKey) continue
+    if (col.key === 'discrepancies') continue
     const f = colFilters.value[col.key] || ''
     if (!f) continue
     rows = _applyColFilter(rows, col.key, f)
   }
+  if (excludeKey !== 'discrepancies' && discFilter.value.size > 0) {
+    rows = rows.filter(row => _matchDisc(row))
+  }
   return rows
 }
+
+function discrepancyOptions() {
+  const rows = rowsFilteredExcept('discrepancies')
+  const tags = new Map()
+  let noneCount = 0
+  for (const row of rows) {
+    const v = row.discrepancies
+    if (_isEmpty(v)) { noneCount++; continue }
+    const parts = _splitDisc(v)
+    for (const p of parts) tags.set(p, (tags.get(p) || 0) + 1)
+  }
+  const sorted = [...tags.entries()].sort((a, b) => a[0].localeCompare(b[0], 'ru'))
+  return { noneCount, total: rows.length, tags: sorted }
+}
+
+function toggleDiscTag(tag) {
+  const s = new Set(discFilter.value)
+  if (s.has(tag)) s.delete(tag); else s.add(tag)
+  discFilter.value = s
+  applyFilters()
+}
+
+function clearDiscFilter() {
+  discFilter.value = new Set()
+  applyFilters()
+}
+
+function onClickOutsideDisc(e) {
+  if (discDropdownRef.value && !discDropdownRef.value.contains(e.target)) {
+    showDiscDropdown.value = false
+  }
+}
+
+const discFilterLabel = computed(() => {
+  const n = discFilter.value.size
+  if (n === 0) return '— все'
+  return 'Выбрано: ' + n
+})
 
 function filterOptions(key) {
   const available = rowsFilteredExcept(key)
@@ -141,9 +202,13 @@ function applyFilters() {
   let rows = cachedRows.value
   if (gf) rows = rows.filter(row => getSearchString(row).indexOf(gf) !== -1)
   for (const col of COLUMNS) {
+    if (col.key === 'discrepancies') continue
     const f = colFilters.value[col.key] || ''
     if (!f) continue
     rows = _applyColFilter(rows, col.key, f)
+  }
+  if (discFilter.value.size > 0) {
+    rows = rows.filter(row => _matchDisc(row))
   }
   if (sortCol.value) {
     const dir = sortDir.value === 'asc' ? 1 : -1
@@ -189,6 +254,7 @@ function onColFilter(key, val) {
 
 function resetFilters() {
   colFilters.value = {}
+  discFilter.value = new Set()
   sortCol.value = null
   sortDir.value = 'asc'
   globalFilter.value = ''
@@ -222,6 +288,7 @@ function onScroll() {
 
 onBeforeUnmount(() => {
   if (scrollTimeout) { clearTimeout(scrollTimeout); scrollTimeout = null }
+  document.removeEventListener('mousedown', onClickOutsideDisc)
 })
 
 const { exportToXLSX } = useExport()
@@ -231,6 +298,7 @@ function doExport() {
 }
 
 onMounted(async () => {
+  document.addEventListener('mousedown', onClickOutsideDisc)
   try {
     const data = await fetchJSON('/api/consolidated')
     cachedRows.value = data.rows || []
@@ -298,7 +366,8 @@ onMounted(async () => {
         <tr class="thead-labels">
           <th class="col-num">#</th>
           <th v-for="col in visibleColumns" :key="col.key" class="sortable" :data-key="col.key"
-            :class="{ 'filter-active': !!colFilters[col.key] }" @click="onSort(col.key)">
+            :class="{ 'filter-active': col.key === 'discrepancies' ? discFilter.size > 0 : !!colFilters[col.key] }"
+            @click="onSort(col.key)">
             {{ col.label }} <span class="sort-icon">{{ sortIcon(col.key) }}</span>
           </th>
         </tr>
@@ -306,7 +375,33 @@ onMounted(async () => {
         <tr class="thead-filters">
           <th class="col-num"></th>
           <th v-for="col in visibleColumns" :key="col.key">
-            <select class="col-filter" :value="colFilters[col.key] || ''"
+            <!-- Multi-select for discrepancies -->
+            <div v-if="col.key === 'discrepancies'" class="disc-filter-wrap" ref="discDropdownRef">
+              <button class="disc-filter-btn" :class="{ active: discFilter.size > 0 }"
+                @click.stop="showDiscDropdown = !showDiscDropdown">
+                {{ discFilterLabel }}
+                <span class="disc-filter-arrow">{{ showDiscDropdown ? '▴' : '▾' }}</span>
+              </button>
+              <div v-if="showDiscDropdown" class="disc-dropdown">
+                <div class="disc-dropdown-actions">
+                  <button @click="clearDiscFilter" class="disc-dropdown-link">Сбросить</button>
+                </div>
+                <label class="disc-dropdown-item" @click.stop>
+                  <input type="checkbox" :checked="discFilter.has('__NONE__')"
+                    @change="toggleDiscTag('__NONE__')">
+                  <span>Нет расхождений ({{ discrepancyOptions().noneCount }})</span>
+                </label>
+                <div class="disc-dropdown-sep"></div>
+                <label v-for="[tag, cnt] in discrepancyOptions().tags" :key="tag"
+                  class="disc-dropdown-item" @click.stop>
+                  <input type="checkbox" :checked="discFilter.has(tag)"
+                    @change="toggleDiscTag(tag)">
+                  <span>{{ tag }} ({{ cnt }})</span>
+                </label>
+              </div>
+            </div>
+            <!-- Standard select for other columns -->
+            <select v-else class="col-filter" :value="colFilters[col.key] || ''"
               @change="onColFilter(col.key, ($event.target).value)">
               <option v-for="opt in filterOptions(col.key)" :key="opt.value" :value="opt.value">
                 {{ opt.label }}
