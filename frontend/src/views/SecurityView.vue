@@ -1,6 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import PopupOverlay from '../components/PopupOverlay.vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import UserCardPopup from '../components/UserCardPopup.vue'
 import DnPopup from '../components/DnPopup.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
@@ -10,30 +9,72 @@ import { escapeHtml } from '../utils/format'
 const SEVERITY_LABEL = { critical: 'Критич.', high: 'Высокий', medium: 'Средний', info: 'Инфо' }
 const SEVERITY_CLASS = { critical: 'sec-sev-critical', high: 'sec-sev-high', medium: 'sec-sev-medium', info: 'sec-sev-info' }
 
-const summaryCards = ref([])
-const findings = ref([])
+const rawFindings = ref([])
+const availableDomains = ref([])
+const selectedDomains = reactive(new Set())
 const error = ref('')
+const loading = ref(true)
 const collapsed = ref({})
 
 const cardPopup = ref(null)
 const dnPopup = ref(null)
 
+function toggleDomain(key) {
+  if (selectedDomains.has(key)) selectedDomains.delete(key)
+  else selectedDomains.add(key)
+}
+
+function selectAll() {
+  availableDomains.value.forEach(d => selectedDomains.add(d.key))
+}
+
+function selectNone() {
+  selectedDomains.clear()
+}
+
+const allSelected = computed(() =>
+  availableDomains.value.length > 0 && selectedDomains.size === availableDomains.value.length
+)
+
+function filterItems(items) {
+  if (selectedDomains.size === 0 || selectedDomains.size === availableDomains.value.length) return items
+  return items.filter(it => selectedDomains.has(it.ad_source))
+}
+
+const findings = computed(() => {
+  return rawFindings.value.map(f => {
+    const filtered = filterItems(f.items)
+    return { ...f, items: filtered, count: filtered.length }
+  })
+})
+
+const summaryCards = computed(() => {
+  let totalIssues = 0, criticalCount = 0, highCount = 0
+  for (const f of findings.value) {
+    totalIssues += f.count
+    if (f.severity === 'critical') criticalCount += f.count
+    else if (f.severity === 'high') highCount += f.count
+  }
+  return [
+    { label: 'Критичных', value: criticalCount, cls: criticalCount > 0 ? 'sec-card-critical' : '' },
+    { label: 'Высоких', value: highCount, cls: highCount > 0 ? 'sec-card-high' : '' },
+    { label: 'Всего замечаний', value: totalIssues, cls: totalIssues > 0 ? 'sec-card-warn' : 'sec-card-ok' },
+  ]
+})
+
 onMounted(async () => {
   try {
     const data = await fetchJSON('/api/security/findings')
-    summaryCards.value = [
-      { label: 'Всего УЗ', value: data.total_accounts, cls: '' },
-      { label: 'Активных', value: data.total_enabled, cls: '' },
-      { label: 'Критичных', value: data.critical_count, cls: data.critical_count > 0 ? 'sec-card-critical' : '' },
-      { label: 'Высоких', value: data.high_count, cls: data.high_count > 0 ? 'sec-card-high' : '' },
-      { label: 'Всего замечаний', value: data.total_issues, cls: data.total_issues > 0 ? 'sec-card-warn' : 'sec-card-ok' },
-    ]
-    findings.value = data.findings || []
-    findings.value.forEach(f => {
+    availableDomains.value = data.available_domains || []
+    availableDomains.value.forEach(d => selectedDomains.add(d.key))
+    rawFindings.value = data.findings || []
+    rawFindings.value.forEach(f => {
       collapsed.value[f.id] = f.count > 20
     })
   } catch (e) {
     error.value = e.message
+  } finally {
+    loading.value = false
   }
 })
 
@@ -101,13 +142,27 @@ function buildTableHtml(items, extraCols) {
 
       <p v-if="error" class="muted-text">Ошибка: {{ error }}</p>
 
+      <!-- Domain filter -->
+      <div v-if="availableDomains.length > 1" class="sec-domain-filter">
+        <span class="sec-domain-filter-label">Домены:</span>
+        <label v-for="d in availableDomains" :key="d.key" class="sec-domain-chip"
+          :class="{ active: selectedDomains.has(d.key) }">
+          <input type="checkbox" :checked="selectedDomains.has(d.key)" @change="toggleDomain(d.key)">
+          <span>{{ d.label }}</span>
+        </label>
+        <button v-if="!allSelected" class="sec-domain-btn" @click="selectAll" title="Выбрать все">все</button>
+        <button v-if="selectedDomains.size > 0 && !allSelected" class="sec-domain-btn" @click="selectNone" title="Снять выбор">сбросить</button>
+      </div>
+
       <!-- Summary -->
       <div class="sec-summary">
-        <LoadingSpinner v-if="!summaryCards.length && !error" text="Анализ безопасности…" />
-        <div v-for="(c, i) in summaryCards" :key="i" class="sec-card" :class="c.cls">
-          <div class="sec-card-value">{{ c.value }}</div>
-          <div class="sec-card-label">{{ c.label }}</div>
-        </div>
+        <LoadingSpinner v-if="loading" text="Анализ безопасности…" />
+        <template v-else>
+          <div v-for="(c, i) in summaryCards" :key="i" class="sec-card" :class="c.cls">
+            <div class="sec-card-value">{{ c.value }}</div>
+            <div class="sec-card-label">{{ c.label }}</div>
+          </div>
+        </template>
       </div>
 
       <!-- Findings -->

@@ -1167,6 +1167,58 @@ html, body {
 }
 
 /* ─── Аналитика безопасности ─── */
+.sec-domain-filter {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: .5rem .75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.sec-domain-filter-label {
+  font-weight: 600;
+  font-size: .85rem;
+  color: var(--text-secondary, #666);
+  margin-right: .25rem;
+}
+.sec-domain-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .25rem .6rem;
+  border-radius: 16px;
+  font-size: .82rem;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: transparent;
+  transition: all .15s;
+  user-select: none;
+}
+.sec-domain-chip input { display: none; }
+.sec-domain-chip.active {
+  background: var(--accent, #1976d2);
+  color: #fff;
+  border-color: var(--accent, #1976d2);
+}
+.sec-domain-chip:not(.active):hover {
+  border-color: var(--accent, #1976d2);
+  color: var(--accent, #1976d2);
+}
+.sec-domain-btn {
+  background: none;
+  border: none;
+  color: var(--accent, #1976d2);
+  font-size: .78rem;
+  cursor: pointer;
+  padding: .15rem .4rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.sec-domain-btn:hover { opacity: .7; }
+
 .sec-summary {
   display: flex;
   gap: 0.75rem;

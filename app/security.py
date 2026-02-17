@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord
-from app.config import AD_LABELS
+from app.config import AD_LABELS, AD_DOMAINS
 from app.consolidation import load_ou_rules, compute_account_type
 from app.utils import norm, enabled_str
 
@@ -51,6 +51,7 @@ def _user_link(r: ADRecord, ou_rules: dict | None = None) -> dict:
         "key": key,
         "login": login,
         "display_name": norm(r.display_name),
+        "ad_source": r.ad_source or "",
         "domain": AD_LABELS.get(r.ad_source, r.ad_source or ""),
         "enabled": enabled_str(r.enabled),
         "account_type": at,
@@ -330,6 +331,13 @@ def security_findings(db: Session = Depends(get_db)):
             "items": items,
         })
 
+    # Доступные домены (только те, для которых есть записи)
+    loaded_sources = sorted({r.ad_source for r in records if r.ad_source})
+    available_domains = [
+        {"key": s, "label": AD_DOMAINS.get(s, s)}
+        for s in loaded_sources
+    ]
+
     return {
         "total_accounts": total_accounts,
         "total_enabled": total_enabled,
@@ -337,4 +345,5 @@ def security_findings(db: Session = Depends(get_db)):
         "critical_count": critical_count,
         "high_count": high_count,
         "findings": findings,
+        "available_domains": available_domains,
     }
