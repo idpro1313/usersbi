@@ -243,7 +243,8 @@ onMounted(async () => {
       <button type="button" class="btn-icon" title="Сбросить фильтры" @click="resetFilters">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
           stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+          <line x1="18" y1="14" x2="23" y2="19"/><line x1="23" y1="14" x2="18" y2="19"/>
         </svg>
       </button>
       <div class="col-manager-wrap">
