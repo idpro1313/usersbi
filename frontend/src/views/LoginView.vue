@@ -13,6 +13,7 @@ const password = ref('')
 const domain = ref('izhevsk')
 const loading = ref(false)
 const authConfigured = ref(true)
+const hasLdap = ref(false)
 
 const domains = [
   { value: 'izhevsk', label: 'Ижевск' },
@@ -29,7 +30,8 @@ async function handleLogin() {
   try {
     await auth.login(username.value.trim(), password.value, domain.value)
     toast.success('Добро пожаловать!')
-    router.push('/')
+    const redirect = router.currentRoute.value.query.redirect || '/'
+    router.push(redirect)
   } catch (e) {
     toast.error(e.message)
   } finally {
@@ -42,7 +44,14 @@ onMounted(async () => {
     const ok = await auth.checkAuth()
     if (ok) { router.push('/'); return }
   }
-  authConfigured.value = await auth.getAuthStatus()
+  try {
+    const r = await fetch('/api/auth/status')
+    const data = await r.json()
+    authConfigured.value = data.configured
+    hasLdap.value = data.ldap
+  } catch {
+    authConfigured.value = false
+  }
 })
 </script>
 
@@ -59,13 +68,13 @@ onMounted(async () => {
           <div class="form-group">
             <label for="login-user">Логин</label>
             <input id="login-user" v-model="username" type="text" autocomplete="username"
-              placeholder="sAMAccountName" autofocus>
+              placeholder="Имя пользователя" autofocus>
           </div>
           <div class="form-group">
             <label for="login-pass">Пароль</label>
             <input id="login-pass" v-model="password" type="password" autocomplete="current-password">
           </div>
-          <div class="form-group">
+          <div v-if="hasLdap" class="form-group">
             <label for="login-domain">Домен</label>
             <select id="login-domain" v-model="domain">
               <option v-for="d in domains" :key="d.value" :value="d.value">{{ d.label }}</option>
@@ -79,8 +88,8 @@ onMounted(async () => {
 
       <template v-else>
         <div class="login-setup-msg">
-          <p>LDAP-авторизация не настроена.</p>
-          <p>Обратитесь к администратору для настройки подключения.</p>
+          <p>Авторизация не настроена.</p>
+          <p>Обратитесь к администратору для настройки.</p>
           <button class="btn" @click="router.push('/settings')">Перейти к настройке</button>
         </div>
       </template>

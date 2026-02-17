@@ -102,7 +102,7 @@ async function testLdap(domainKey) {
 const usersLoading = ref(false)
 const appUsers = ref([])
 const showAddUser = ref(false)
-const newUser = reactive({ username: '', display_name: '', role: 'viewer', domain: 'izhevsk' })
+const newUser = reactive({ username: '', display_name: '', password: '', role: 'viewer', domain: 'izhevsk' })
 
 async function loadUsers() {
   usersLoading.value = true
@@ -123,6 +123,7 @@ async function addUser() {
     showAddUser.value = false
     newUser.username = ''
     newUser.display_name = ''
+    newUser.password = ''
     newUser.role = 'viewer'
     loadUsers()
   } catch (e) {
@@ -423,13 +424,19 @@ onMounted(() => {
         <div v-if="showAddUser" class="card add-user-card">
           <div class="form-row">
             <div class="form-group">
-              <label>Логин (sAMAccountName)</label>
+              <label>Логин</label>
               <input v-model="newUser.username" placeholder="ivanov">
             </div>
             <div class="form-group">
               <label>Отображаемое имя</label>
               <input v-model="newUser.display_name" placeholder="Иванов И.И.">
             </div>
+            <div class="form-group">
+              <label>Пароль (локальный вход)</label>
+              <input v-model="newUser.password" type="password" placeholder="Оставьте пустым для входа через LDAP">
+            </div>
+          </div>
+          <div class="form-row">
             <div class="form-group">
               <label>Роль</label>
               <select v-model="newUser.role">
@@ -455,6 +462,7 @@ onMounted(() => {
             <tr>
               <th>Логин</th>
               <th>Имя</th>
+              <th>Тип</th>
               <th>Роль</th>
               <th>Домен</th>
               <th>Активен</th>
@@ -466,6 +474,11 @@ onMounted(() => {
             <tr v-for="u in appUsers" :key="u.id" :class="{ 'row-inactive': !u.is_active }">
               <td>{{ u.username }}</td>
               <td>{{ u.display_name }}</td>
+              <td>
+                <span class="type-badge" :class="u.is_local ? 'type-local' : 'type-ldap'">
+                  {{ u.is_local ? 'Локальный' : 'LDAP' }}
+                </span>
+              </td>
               <td>
                 <span class="role-badge" :class="'role-' + u.role">
                   {{ u.role === 'admin' ? 'Админ' : 'Просмотр' }}
@@ -749,6 +762,17 @@ html[data-theme="dark"] .ldap-test-result.err { background: rgba(198,40,40,.15);
 .role-viewer { background: #f3e5f5; color: #7b1fa2; }
 html[data-theme="dark"] .role-admin { background: rgba(21,101,192,.15); }
 html[data-theme="dark"] .role-viewer { background: rgba(123,31,162,.15); }
+.type-badge {
+  display: inline-block;
+  padding: .15rem .5rem;
+  border-radius: 10px;
+  font-size: .8rem;
+  font-weight: 500;
+}
+.type-local { background: #e8f5e9; color: #2e7d32; }
+.type-ldap { background: #fff3e0; color: #e65100; }
+html[data-theme="dark"] .type-local { background: rgba(46,125,50,.15); }
+html[data-theme="dark"] .type-ldap { background: rgba(230,81,0,.15); }
 .row-inactive { opacity: .5; }
 .actions-cell {
   display: flex;

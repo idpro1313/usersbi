@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-"""Модуль авторизации: LDAP bind + JWT + FastAPI dependencies."""
+"""Модуль авторизации: LDAP bind + локальная авторизация + JWT + FastAPI dependencies."""
+import hashlib
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 
 import jwt
@@ -50,6 +52,40 @@ def decrypt_value(encrypted: str) -> str:
         return f.decrypt(encrypted.encode()).decode()
     except InvalidToken:
         return encrypted
+
+
+# ── Хеширование паролей (PBKDF2) ──────────────────────────
+
+def hash_password(password: str) -> str:
+    salt = os.urandom(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 260_000)
+    return salt.hex() + ":" + dk.hex()
+
+
+def verify_password(password: str, stored_hash: str) -> bool:
+    if not stored_hash or ":" not in stored_hash:
+        return False
+    try:
+        salt_hex, dk_hex = stored_hash.split(":", 1)
+        salt = bytes.fromhex(salt_hex)
+        dk = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, 260_000)
+        return dk.hex() == dk_hex
+    except (ValueError, TypeError):
+        return False
+
+
+def authenticate_local(username: str, password: str) -> AppUser | None:
+    """Проверяет локальный пароль. Возвращает AppUser или None."""
+    db = SessionLocal()
+    try:
+        user = db.query(AppUser).filter_by(username=username.lower()).first()
+        if not user or not user.password_hash:
+            return None
+        if not verify_password(password, user.password_hash):
+            return None
+        return user
+    finally:
+        db.close()
 
 
 # ── LDAP bind ──────────────────────────────────────────────

@@ -14,13 +14,13 @@ from pathlib import Path
 
 from app.database import (
     init_db, get_db, Upload, ADRecord, MFARecord, PeopleRecord,
-    AppUser, is_auth_configured,
+    AppUser, is_auth_configured, is_ldap_configured, has_local_users,
 )
 from app.parsers import parse_ad, parse_mfa, parse_people, get_last_parse_info
 from app.consolidation import build_consolidated
 from app.ldap_sync import sync_domain as ldap_sync_domain, is_available as ldap_is_available
 from app.config import AD_DOMAINS, AD_DOMAIN_DN, MAX_UPLOAD_SIZE
-from app.auth import authenticate_ad, create_jwt, get_current_user, require_admin
+from app.auth import authenticate_ad, authenticate_local, create_jwt, get_current_user, require_admin
 from app.settings_api import router as settings_router
 from app.groups import router as groups_router
 from app.structure import router as structure_router
@@ -86,7 +86,7 @@ async def favicon():
 
 @app.post("/api/auth/login")
 async def auth_login(payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
-    """Авторизация через LDAP bind."""
+    """Авторизация: сначала локальный пароль, затем LDAP bind."""
     username = (payload.get("username") or "").strip()
     password = payload.get("password", "")
     domain = payload.get("domain", "izhevsk")
@@ -95,33 +95,45 @@ async def auth_login(payload: Dict[str, Any] = Body(...), db: Session = Depends(
         raise HTTPException(400, "Логин и пароль обязательны")
 
     if not is_auth_configured(db):
-        raise HTTPException(503, "LDAP-авторизация не настроена")
+        raise HTTPException(503, "Авторизация не настроена. Создайте локального пользователя или настройте LDAP.")
 
-    result = authenticate_ad(username, password, domain)
-    if not result:
-        raise HTTPException(401, "Неверный логин или пароль")
-
-    display_name = result.get("display_name", username)
+    user = None
     username_lower = username.lower()
 
-    user = db.query(AppUser).filter_by(username=username_lower).first()
-    if not user:
-        has_any = db.query(AppUser).count()
-        role = "admin" if has_any == 0 else "viewer"
-        user = AppUser(
-            username=username_lower,
-            display_name=display_name,
-            role=role,
-            domain=domain,
-            is_active=True,
-        )
-        db.add(user)
-        db.flush()
+    # 1) Попытка локальной авторизации
+    local_user = authenticate_local(username, password)
+    if local_user:
+        user = db.query(AppUser).filter_by(username=username_lower).first()
     else:
-        if not user.is_active:
-            raise HTTPException(403, "Учётная запись заблокирована")
-        if user.display_name != display_name:
-            user.display_name = display_name
+        # 2) Попытка LDAP-авторизации (если настроен)
+        if is_ldap_configured(db):
+            try:
+                result = authenticate_ad(username, password, domain)
+            except HTTPException:
+                result = None
+            if result:
+                display_name = result.get("display_name", username)
+                user = db.query(AppUser).filter_by(username=username_lower).first()
+                if not user:
+                    has_any = db.query(AppUser).count()
+                    role = "admin" if has_any == 0 else "viewer"
+                    user = AppUser(
+                        username=username_lower,
+                        display_name=display_name,
+                        role=role,
+                        domain=domain,
+                        is_active=True,
+                    )
+                    db.add(user)
+                    db.flush()
+                elif user.display_name != display_name:
+                    user.display_name = display_name
+
+    if not user:
+        raise HTTPException(401, "Неверный логин или пароль")
+
+    if not user.is_active:
+        raise HTTPException(403, "Учётная запись заблокирована")
 
     user.last_login = datetime.now(timezone.utc)
     db.commit()
@@ -147,8 +159,11 @@ async def auth_me(user: dict = Depends(get_current_user)):
 @app.get("/api/auth/status")
 async def auth_status(db: Session = Depends(get_db)):
     """Статус авторизации: настроена ли."""
-    configured = is_auth_configured(db)
-    return {"configured": configured}
+    return {
+        "configured": is_auth_configured(db),
+        "ldap": is_ldap_configured(db),
+        "local_users": has_local_users(db),
+    }
 
 
 # ─── Загрузка файлов ────────────────────────────────────────

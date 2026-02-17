@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 
 from app.database import get_db, get_setting, set_setting, AppSetting, AppUser
-from app.auth import require_admin, encrypt_value, decrypt_value
+from app.auth import require_admin, encrypt_value, decrypt_value, hash_password
 from app.config import AD_DOMAINS
 
 logger = logging.getLogger(__name__)
@@ -133,6 +133,7 @@ async def list_users(
             "role": u.role,
             "domain": u.domain,
             "is_active": u.is_active,
+            "is_local": bool(u.password_hash),
             "last_login": u.last_login.isoformat() if u.last_login else None,
             "created_at": u.created_at.isoformat() if u.created_at else None,
         }
@@ -154,9 +155,11 @@ async def add_user(
     role = payload.get("role", "viewer")
     if role not in ("admin", "viewer"):
         role = "viewer"
+    pwd = (payload.get("password") or "").strip()
     user = AppUser(
         username=username,
         display_name=payload.get("display_name", ""),
+        password_hash=hash_password(pwd) if pwd else "",
         role=role,
         domain=payload.get("domain", ""),
         is_active=True,
@@ -186,6 +189,9 @@ async def update_user(
         user.display_name = payload["display_name"]
     if "domain" in payload:
         user.domain = payload["domain"]
+    if "password" in payload:
+        pwd = (payload["password"] or "").strip()
+        user.password_hash = hash_password(pwd) if pwd else ""
     if "is_active" in payload:
         if user.username == current["username"] and not payload["is_active"]:
             raise HTTPException(400, "Нельзя заблокировать себя")

@@ -25,6 +25,7 @@ class AppUser(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String(100), unique=True, index=True, nullable=False)
     display_name = Column(String(255), default="")
+    password_hash = Column(String(255), default="")
     role = Column(String(20), default="viewer")
     domain = Column(String(50), default="")
     is_active = Column(Boolean, default=True)
@@ -197,6 +198,8 @@ def init_db():
     _migrate_table(insp, "ad_records", ADRecord)
     _migrate_table(insp, "mfa_records", MFARecord)
     _migrate_table(insp, "people_records", PeopleRecord)
+    if "app_users" in insp.get_table_names():
+        _migrate_table(insp, "app_users", AppUser)
     _ensure_jwt_secret()
 
 
@@ -228,13 +231,23 @@ def set_setting(db, key: str, value: str):
         db.add(AppSetting(key=key, value=value, updated_at=datetime.now(timezone.utc)))
 
 
-def is_auth_configured(db) -> bool:
-    """Проверяет, настроена ли авторизация (есть ли хотя бы один LDAP-сервер)."""
+def is_ldap_configured(db) -> bool:
+    """Проверяет, настроен ли хотя бы один LDAP-сервер."""
     for domain in ("izhevsk", "kostroma", "moscow"):
         srv = get_setting(db, f"ldap.{domain}.server")
         if srv:
             return True
     return False
+
+
+def has_local_users(db) -> bool:
+    """Проверяет, есть ли локальные пользователи с паролем."""
+    return db.query(AppUser).filter(AppUser.password_hash != "", AppUser.password_hash.isnot(None)).count() > 0
+
+
+def is_auth_configured(db) -> bool:
+    """Авторизация настроена, если есть LDAP или локальные пользователи."""
+    return is_ldap_configured(db) or has_local_users(db)
 
 
 def get_db():
