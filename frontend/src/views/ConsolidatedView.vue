@@ -93,7 +93,6 @@ function _isEmpty(v) {
 function _applyColFilter(rows, key, f) {
   if (f === '__EMPTY__') return rows.filter(row => _isEmpty(row[key]))
   if (f === '__NOT_EMPTY__') return rows.filter(row => { const v = row[key]; return !_isEmpty(v) && !_isStub(v) })
-  if (f === '__STUBS__') return rows.filter(row => _isStub(row[key]))
   return rows.filter(row => String(row[key] ?? '') === f)
 }
 
@@ -114,29 +113,23 @@ function filterOptions(key) {
   const available = rowsFilteredExcept(key)
   const counts = {}
   let emptyCount = 0
-  let stubCount = 0
   let realCount = 0
   for (const row of available) {
     const v = row[key]
     if (_isEmpty(v)) { emptyCount++; continue }
     const s = String(v)
     counts[s] = (counts[s] || 0) + 1
-    if (_isStub(s)) stubCount++
-    else realCount++
+    if (!_isStub(s)) realCount++
   }
   const isDate = !!DATE_KEYS[key]
   const sorted = Object.keys(counts).sort((a, b) => {
-    const aStub = _isStub(a) ? 0 : 1
-    const bStub = _isStub(b) ? 0 : 1
-    if (aStub !== bStub) return aStub - bStub
     if (isDate) { return dateSortKey(a) < dateSortKey(b) ? -1 : dateSortKey(a) > dateSortKey(b) ? 1 : 0 }
     return a.localeCompare(b, 'ru')
   })
-  const total = emptyCount + stubCount + realCount
+  const total = emptyCount + Object.values(counts).reduce((s, c) => s + c, 0)
   const opts = [{ value: '', label: '— все (' + total + ')' }]
   if (total > 0) {
     opts.push({ value: '__EMPTY__', label: 'ПУСТО (' + emptyCount + ')' })
-    if (stubCount > 0) opts.push({ value: '__STUBS__', label: 'ЗАГЛУШКИ (' + stubCount + ')' })
     opts.push({ value: '__NOT_EMPTY__', label: 'ЕСТЬ ДАННЫЕ (' + realCount + ')' })
   }
   for (const v of sorted) opts.push({ value: v, label: v + ' (' + counts[v] + ')' })
