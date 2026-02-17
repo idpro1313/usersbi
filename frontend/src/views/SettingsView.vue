@@ -8,7 +8,7 @@ import LoadingSpinner from '../components/LoadingSpinner.vue'
 const toast = useToast()
 const auth = useAuth()
 
-const activeTab = ref('ldap')
+const activeTab = ref('users')
 const tabs = [
   { key: 'ldap', label: 'LDAP-подключения' },
   { key: 'users', label: 'Пользователи' },
@@ -325,6 +325,11 @@ onMounted(() => {
     <div class="page-inner">
       <h1 class="page-title">Настройки</h1>
 
+      <div v-if="!auth.isLoggedIn.value && appUsers.length === 0" class="setup-banner">
+        <strong>Первый запуск.</strong> Создайте локального пользователя с паролем на вкладке «Пользователи», чтобы активировать авторизацию.
+        Либо настройте LDAP-подключение на вкладке «LDAP-подключения».
+      </div>
+
       <div class="settings-tabs">
         <button v-for="tab in tabs" :key="tab.key"
           class="settings-tab" :class="{ active: activeTab === tab.key }"
@@ -503,7 +508,7 @@ onMounted(() => {
             </tr>
           </tbody>
         </table>
-        <p v-else class="empty-msg">Пользователей пока нет. Первый аутентифицированный пользователь станет администратором.</p>
+        <p v-else class="empty-msg">Пользователей пока нет. Нажмите «+ Добавить пользователя» и задайте пароль для локального входа.</p>
       </div>
 
       <!-- ═══ Tab: Upload ═══ -->
@@ -597,6 +602,20 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.setup-banner {
+  background: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+  border-radius: 8px;
+  padding: .75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: .9rem;
+  line-height: 1.5;
+}
+html[data-theme="dark"] .setup-banner {
+  background: rgba(21,101,192,.12);
+  border-color: rgba(21,101,192,.3);
+}
 .settings-tabs {
   display: flex;
   gap: .25rem;
