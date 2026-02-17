@@ -164,9 +164,15 @@ function openDiscDropdown(e) {
   if (showDiscDropdown.value) {
     const btn = e.currentTarget
     const rect = btn.getBoundingClientRect()
+    const dropWidth = 240
+    let left = rect.left
+    if (left + dropWidth > window.innerWidth - 8) {
+      left = rect.right - dropWidth
+    }
+    if (left < 8) left = 8
     discDropdownPos.value = {
       top: rect.bottom + 2 + 'px',
-      left: rect.left + 'px',
+      left: left + 'px',
     }
   }
 }
