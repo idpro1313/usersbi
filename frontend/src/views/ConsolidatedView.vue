@@ -99,17 +99,18 @@ function rowsFilteredExcept(excludeKey) {
 
 function filterOptions(key) {
   const available = rowsFilteredExcept(key)
-  const vals = {}
+  const counts = {}
   let emptyCount = 0
   let filledCount = 0
   for (const row of available) {
     const v = row[key]
     if (v == null || v === '') { emptyCount++; continue }
     filledCount++
-    vals[String(v)] = true
+    const s = String(v)
+    counts[s] = (counts[s] || 0) + 1
   }
   const isDate = !!DATE_KEYS[key]
-  const sorted = Object.keys(vals).sort((a, b) => {
+  const sorted = Object.keys(counts).sort((a, b) => {
     const aStub = a.indexOf('НЕТ') === 0 ? 0 : 1
     const bStub = b.indexOf('НЕТ') === 0 ? 0 : 1
     if (aStub !== bStub) return aStub - bStub
@@ -122,7 +123,7 @@ function filterOptions(key) {
     opts.push({ value: '__EMPTY__', label: 'ПУСТО (' + emptyCount + ')' })
     opts.push({ value: '__NOT_EMPTY__', label: 'НЕ ПУСТО (' + filledCount + ')' })
   }
-  for (const v of sorted) opts.push({ value: v, label: v })
+  for (const v of sorted) opts.push({ value: v, label: v + ' (' + counts[v] + ')' })
   return opts
 }
 
