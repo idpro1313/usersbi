@@ -159,7 +159,9 @@ function clearDiscFilter() {
 }
 
 function onClickOutsideDisc(e) {
-  if (discDropdownRef.value && !discDropdownRef.value.contains(e.target)) {
+  if (!showDiscDropdown.value) return
+  const el = Array.isArray(discDropdownRef.value) ? discDropdownRef.value[0] : discDropdownRef.value
+  if (el && !el.contains(e.target)) {
     showDiscDropdown.value = false
   }
 }
