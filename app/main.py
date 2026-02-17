@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-import base64
 import io
 import logging
-import secrets
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from typing import Dict, Any
 
 import pandas as pd
@@ -11,16 +10,18 @@ from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Body
 from fastapi.responses import HTMLResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import Response as StarletteResponse
 from pathlib import Path
 
-from app.database import init_db, get_db, Upload, ADRecord, MFARecord, PeopleRecord
+from app.database import (
+    init_db, get_db, Upload, ADRecord, MFARecord, PeopleRecord,
+    AppUser, is_auth_configured,
+)
 from app.parsers import parse_ad, parse_mfa, parse_people, get_last_parse_info
 from app.consolidation import build_consolidated
 from app.ldap_sync import sync_domain as ldap_sync_domain, is_available as ldap_is_available
-from app.config import AD_DOMAINS, AD_DOMAIN_DN, MAX_UPLOAD_SIZE, AUTH_USERNAME, AUTH_PASSWORD
+from app.config import AD_DOMAINS, AD_DOMAIN_DN, MAX_UPLOAD_SIZE
+from app.auth import authenticate_ad, create_jwt, get_current_user, require_admin
+from app.settings_api import router as settings_router
 from app.groups import router as groups_router
 from app.structure import router as structure_router
 from app.users import router as users_router
@@ -49,34 +50,6 @@ async def _read_upload(file: UploadFile) -> bytes:
     return content
 
 
-# ─── Basic Auth (опциональная) ───────────────────────────────
-
-class _BasicAuthMiddleware(BaseHTTPMiddleware):
-    """HTTP Basic Auth. Активна только при заданных AUTH_USERNAME и AUTH_PASSWORD."""
-
-    async def dispatch(self, request: Request, call_next):
-        if not AUTH_USERNAME or not AUTH_PASSWORD:
-            return await call_next(request)
-        # Пропускаем healthcheck для Docker
-        if request.url.path == "/api/stats":
-            return await call_next(request)
-        auth_header = request.headers.get("Authorization", "")
-        if auth_header.startswith("Basic "):
-            try:
-                decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
-                username, password = decoded.split(":", 1)
-                if (secrets.compare_digest(username, AUTH_USERNAME)
-                        and secrets.compare_digest(password, AUTH_PASSWORD)):
-                    return await call_next(request)
-            except Exception:
-                pass
-        return StarletteResponse(
-            content="Unauthorized",
-            status_code=401,
-            headers={"WWW-Authenticate": 'Basic realm="UsersBI"'},
-        )
-
-
 # ─── Приложение ──────────────────────────────────────────────
 
 @asynccontextmanager
@@ -86,13 +59,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Девелоника Пользователи", lifespan=lifespan)
-app.add_middleware(_BasicAuthMiddleware)
-app.include_router(groups_router)
-app.include_router(structure_router)
-app.include_router(users_router)
-app.include_router(duplicates_router)
-app.include_router(org_router)
-app.include_router(security_router)
+app.include_router(settings_router)
+app.include_router(groups_router,    dependencies=[Depends(get_current_user)])
+app.include_router(structure_router, dependencies=[Depends(get_current_user)])
+app.include_router(users_router,     dependencies=[Depends(get_current_user)])
+app.include_router(duplicates_router,dependencies=[Depends(get_current_user)])
+app.include_router(org_router,       dependencies=[Depends(get_current_user)])
+app.include_router(security_router,  dependencies=[Depends(get_current_user)])
 
 _assets_dir = DIST_DIR / "assets"
 if _assets_dir.exists():
@@ -109,10 +82,79 @@ async def favicon():
     return HTMLResponse("", status_code=204)
 
 
+# ─── Авторизация ────────────────────────────────────────────
+
+@app.post("/api/auth/login")
+async def auth_login(payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
+    """Авторизация через LDAP bind."""
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password", "")
+    domain = payload.get("domain", "izhevsk")
+
+    if not username or not password:
+        raise HTTPException(400, "Логин и пароль обязательны")
+
+    if not is_auth_configured(db):
+        raise HTTPException(503, "LDAP-авторизация не настроена")
+
+    result = authenticate_ad(username, password, domain)
+    if not result:
+        raise HTTPException(401, "Неверный логин или пароль")
+
+    display_name = result.get("display_name", username)
+    username_lower = username.lower()
+
+    user = db.query(AppUser).filter_by(username=username_lower).first()
+    if not user:
+        has_any = db.query(AppUser).count()
+        role = "admin" if has_any == 0 else "viewer"
+        user = AppUser(
+            username=username_lower,
+            display_name=display_name,
+            role=role,
+            domain=domain,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+    else:
+        if not user.is_active:
+            raise HTTPException(403, "Учётная запись заблокирована")
+        if user.display_name != display_name:
+            user.display_name = display_name
+
+    user.last_login = datetime.now(timezone.utc)
+    db.commit()
+
+    token = create_jwt(user.username, user.display_name, user.role, user.domain)
+    return {
+        "token": token,
+        "user": {
+            "username": user.username,
+            "display_name": user.display_name,
+            "role": user.role,
+            "domain": user.domain,
+        },
+    }
+
+
+@app.get("/api/auth/me")
+async def auth_me(user: dict = Depends(get_current_user)):
+    """Возвращает информацию о текущем пользователе."""
+    return user
+
+
+@app.get("/api/auth/status")
+async def auth_status(db: Session = Depends(get_db)):
+    """Статус авторизации: настроена ли."""
+    configured = is_auth_configured(db)
+    return {"configured": configured}
+
+
 # ─── Загрузка файлов ────────────────────────────────────────
 
 @app.post("/api/upload/ad/{domain_key}")
-async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     if domain_key not in AD_DOMAINS:
         raise HTTPException(400, f"Неизвестный домен: {domain_key}")
     city_name = AD_DOMAINS[domain_key]
@@ -150,7 +192,7 @@ async def upload_ad(domain_key: str, file: UploadFile = File(...), db: Session =
 
 
 @app.post("/api/upload/mfa")
-async def upload_mfa(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_mfa(file: UploadFile = File(...), db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     if not file.filename:
         raise HTTPException(400, "Нет имени файла")
     content = await _read_upload(file)
@@ -174,7 +216,7 @@ async def upload_mfa(file: UploadFile = File(...), db: Session = Depends(get_db)
 
 
 @app.post("/api/upload/people")
-async def upload_people(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_people(file: UploadFile = File(...), db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     if not file.filename:
         raise HTTPException(400, "Нет имени файла")
     content = await _read_upload(file)
@@ -200,13 +242,13 @@ async def upload_people(file: UploadFile = File(...), db: Session = Depends(get_
 # ─── Синхронизация из AD по LDAP ─────────────────────────────
 
 @app.get("/api/sync/status")
-async def sync_status():
+async def sync_status(_u: dict = Depends(get_current_user)):
     """Проверяет доступность LDAP-синхронизации."""
     return ldap_is_available()
 
 
 @app.post("/api/sync/ad/{domain_key}")
-async def sync_ad_domain(domain_key: str, db: Session = Depends(get_db)):
+async def sync_ad_domain(domain_key: str, db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     """Синхронизирует один домен AD по LDAP."""
     if domain_key not in AD_DOMAINS:
         raise HTTPException(400, f"Неизвестный домен: {domain_key}")
@@ -237,7 +279,7 @@ async def sync_ad_domain(domain_key: str, db: Session = Depends(get_db)):
 
 
 @app.post("/api/sync/ad")
-async def sync_ad_all(db: Session = Depends(get_db)):
+async def sync_ad_all(db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     """Синхронизирует все настроенные домены AD по LDAP."""
     results = {}
     errors = []
@@ -276,7 +318,7 @@ async def sync_ad_all(db: Session = Depends(get_db)):
 # ─── Сводная ────────────────────────────────────────────────
 
 @app.get("/api/consolidated")
-async def get_consolidated(db: Session = Depends(get_db)):
+async def get_consolidated(db: Session = Depends(get_db), _u: dict = Depends(get_current_user)):
     rows = build_consolidated(db)
     return {"rows": rows, "total": len(rows)}
 
@@ -284,7 +326,7 @@ async def get_consolidated(db: Session = Depends(get_db)):
 # ─── Статистика ─────────────────────────────────────────────
 
 @app.get("/api/stats")
-async def get_stats(db: Session = Depends(get_db)):
+async def get_stats(db: Session = Depends(get_db), _u: dict = Depends(get_current_user)):
     mfa = db.query(MFARecord).count()
     people = db.query(PeopleRecord).count()
     last_mfa = db.query(Upload).filter(Upload.source == "mfa").order_by(Upload.uploaded_at.desc()).first()
@@ -314,7 +356,7 @@ async def get_stats(db: Session = Depends(get_db)):
 # ─── Очистка БД ─────────────────────────────────────────────
 
 @app.delete("/api/clear/all")
-async def clear_all(db: Session = Depends(get_db)):
+async def clear_all(db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     ad = db.query(ADRecord).count()
     mfa = db.query(MFARecord).count()
     people = db.query(PeopleRecord).count()
@@ -331,7 +373,7 @@ async def clear_all(db: Session = Depends(get_db)):
 
 
 @app.delete("/api/clear/ad/{domain_key}")
-async def clear_ad(domain_key: str, db: Session = Depends(get_db)):
+async def clear_ad(domain_key: str, db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     if domain_key not in AD_DOMAINS:
         raise HTTPException(400, f"Неизвестный домен: {domain_key}")
     count = db.query(ADRecord).filter(ADRecord.ad_source == domain_key).count()
@@ -342,7 +384,7 @@ async def clear_ad(domain_key: str, db: Session = Depends(get_db)):
 
 
 @app.delete("/api/clear/mfa")
-async def clear_mfa(db: Session = Depends(get_db)):
+async def clear_mfa(db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     count = db.query(MFARecord).count()
     db.query(MFARecord).delete()
     db.query(Upload).filter(Upload.source == "mfa").delete()
@@ -351,7 +393,7 @@ async def clear_mfa(db: Session = Depends(get_db)):
 
 
 @app.delete("/api/clear/people")
-async def clear_people(db: Session = Depends(get_db)):
+async def clear_people(db: Session = Depends(get_db), _u: dict = Depends(require_admin)):
     count = db.query(PeopleRecord).count()
     db.query(PeopleRecord).delete()
     db.query(Upload).filter(Upload.source == "people").delete()
@@ -362,7 +404,7 @@ async def clear_people(db: Session = Depends(get_db)):
 # ─── Экспорт ────────────────────────────────────────────────
 
 @app.get("/api/export/xlsx")
-async def export_xlsx(db: Session = Depends(get_db)):
+async def export_xlsx(db: Session = Depends(get_db), _u: dict = Depends(get_current_user)):
     """Выгружает сводную таблицу в Excel (все данные)."""
     rows = build_consolidated(db)
     if not rows:
@@ -401,7 +443,7 @@ async def export_xlsx(db: Session = Depends(get_db)):
 
 
 @app.post("/api/export/table")
-async def export_table(payload: Dict[str, Any] = Body(...)):
+async def export_table(payload: Dict[str, Any] = Body(...), _u: dict = Depends(get_current_user)):
     """Универсальная выгрузка таблицы в XLSX."""
     columns = payload.get("columns", [])
     rows = payload.get("rows", [])
@@ -433,7 +475,7 @@ async def export_table(payload: Dict[str, Any] = Body(...)):
 # ─── Диагностика ────────────────────────────────────────────
 
 @app.get("/api/debug/columns")
-async def debug_columns():
+async def debug_columns(_u: dict = Depends(require_admin)):
     return get_last_parse_info()
 
 

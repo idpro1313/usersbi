@@ -1,10 +1,13 @@
 <script setup>
+import { useRoute } from 'vue-router'
 import NavBar from './components/NavBar.vue'
 import ToastContainer from './components/ToastContainer.vue'
+
+const route = useRoute()
 </script>
 
 <template>
-  <div class="layout">
+  <div :class="route.meta?.hideNav ? 'layout-full' : 'layout'">
     <NavBar />
     <router-view v-slot="{ Component }">
       <Transition name="page" mode="out-in">

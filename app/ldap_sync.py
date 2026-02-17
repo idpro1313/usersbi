@@ -3,9 +3,9 @@
 import logging
 from datetime import datetime, timezone, timedelta
 
-from app.config import (
-    AD_LDAP, AD_LDAP_USER, AD_LDAP_PASSWORD, AD_LDAP_USE_SSL, AD_DOMAINS,
-)
+from app.config import AD_DOMAINS
+from app.database import SessionLocal, get_setting
+from app.auth import decrypt_value
 from app.utils import norm, norm_phone
 
 logger = logging.getLogger(__name__)
@@ -32,16 +32,36 @@ _AD_ATTRS = [
 ]
 
 
+def _get_ldap_config() -> dict:
+    """Возвращает LDAP-конфигурацию из БД."""
+    db = SessionLocal()
+    try:
+        user = get_setting(db, "ldap.user")
+        pwd = decrypt_value(get_setting(db, "ldap.password"))
+        use_ssl = get_setting(db, "ldap.use_ssl", "false").lower() in ("true", "1")
+        domains = {}
+        for key in AD_DOMAINS:
+            domains[key] = {
+                "server": get_setting(db, f"ldap.{key}.server"),
+                "search_base": get_setting(db, f"ldap.{key}.search_base"),
+                "enabled": get_setting(db, f"ldap.{key}.enabled", "false").lower() in ("true", "1"),
+            }
+        return {"user": user, "password": pwd, "use_ssl": use_ssl, "domains": domains}
+    finally:
+        db.close()
+
+
 def is_available() -> dict:
     """Проверяет доступность LDAP-синхронизации."""
     if not _LDAP3_AVAILABLE:
         return {"available": False, "reason": "Библиотека ldap3 не установлена"}
-    if not AD_LDAP_USER or not AD_LDAP_PASSWORD:
-        return {"available": False, "reason": "Не заданы AD_LDAP_USER / AD_LDAP_PASSWORD"}
+    cfg = _get_ldap_config()
+    if not cfg["user"] or not cfg["password"]:
+        return {"available": False, "reason": "Не заданы учётные данные LDAP в настройках"}
     domains = {}
     for key in AD_DOMAINS:
-        cfg = AD_LDAP.get(key, {})
-        srv = cfg.get("server", "")
+        d = cfg["domains"].get(key, {})
+        srv = d.get("server", "")
         domains[key] = {"city": AD_DOMAINS[key], "server": srv, "configured": bool(srv)}
     return {"available": True, "domains": domains}
 
@@ -119,27 +139,30 @@ def sync_domain(domain_key: str) -> tuple[list[dict], str | None]:
     """
     if not _LDAP3_AVAILABLE:
         return [], "Библиотека ldap3 не установлена"
-    if not AD_LDAP_USER or not AD_LDAP_PASSWORD:
-        return [], "Не заданы учётные данные LDAP (AD_LDAP_USER / AD_LDAP_PASSWORD)"
 
-    cfg = AD_LDAP.get(domain_key)
-    if not cfg:
+    ldap_cfg = _get_ldap_config()
+    ldap_user = ldap_cfg["user"]
+    ldap_password = ldap_cfg["password"]
+    use_ssl = ldap_cfg["use_ssl"]
+
+    if not ldap_user or not ldap_password:
+        return [], "Не заданы учётные данные LDAP в настройках"
+
+    dcfg = ldap_cfg["domains"].get(domain_key)
+    if not dcfg:
         return [], f"Нет LDAP-конфигурации для домена: {domain_key}"
 
-    server_addr = cfg.get("server", "")
+    server_addr = dcfg.get("server", "")
     if not server_addr:
-        return [], (
-            f"Не задан LDAP-сервер для домена {domain_key}. "
-            f"Установите переменную AD_LDAP_SERVER_{domain_key.upper()}"
-        )
+        return [], f"Не задан LDAP-сервер для домена {domain_key}. Настройте в Параметрах."
 
-    search_base = cfg.get("search_base", "")
+    search_base = dcfg.get("search_base", "")
     city_name = AD_DOMAINS.get(domain_key, domain_key)
 
     try:
-        port = 636 if AD_LDAP_USE_SSL else 389
-        server = Server(server_addr, port=port, use_ssl=AD_LDAP_USE_SSL, get_info=LDAP_ALL)
-        conn = Connection(server, user=AD_LDAP_USER, password=AD_LDAP_PASSWORD, auto_bind=True)
+        port = 636 if use_ssl else 389
+        server = Server(server_addr, port=port, use_ssl=use_ssl, get_info=LDAP_ALL)
+        conn = Connection(server, user=ldap_user, password=ldap_password, auto_bind=True)
 
         logger.info("[LDAP %s] Подключено к %s:%d, search_base=%s", domain_key, server_addr, port, search_base)
 

@@ -75,6 +75,9 @@ html, body {
   flex-direction: column;
   height: 100vh;
 }
+.layout-full {
+  height: 100vh;
+}
 
 .page-wrap {
   display: flex;

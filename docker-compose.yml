@@ -9,16 +9,11 @@ services:
       - ./data:/app/data
     environment:
       - DATABASE_URL=sqlite:////app/data/app.db
-      # ─── LDAP-синхронизация из AD (опционально) ───
-      # Раскомментируйте и заполните для прямого чтения из AD:
-      # - AD_LDAP_USER=user@domain.com
-      # - AD_LDAP_PASSWORD=secret
-      # - AD_LDAP_SERVER_IZHEVSK=dc.htc-cs.com
-      # - AD_LDAP_SERVER_KOSTROMA=dc.ad.local
-      # - AD_LDAP_SERVER_MOSCOW=dc.aplana.com
-      # - AD_LDAP_USE_SSL=false
+      # Ключ для шифрования паролей LDAP в БД (Fernet base64, 32 байта)
+      # Сгенерировать: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      # - APP_SECRET_KEY=your-fernet-key-here
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/stats')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/auth/status')"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -10,9 +10,8 @@ DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite:///{DATA_DIR / 'app.db'}")
 # Максимальный размер загружаемого файла (по умолчанию 50 МБ)
 MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_SIZE", str(50 * 1024 * 1024)))
 
-# Опциональная Basic Auth (активна, только если заданы обе переменные)
-AUTH_USERNAME = os.getenv("AUTH_USERNAME", "")
-AUTH_PASSWORD = os.getenv("AUTH_PASSWORD", "")
+# Ключ для шифрования паролей LDAP в БД (Fernet)
+APP_SECRET_KEY = os.getenv("APP_SECRET_KEY", "")
 
 # ======================================================================
 # Домены AD (ключ → город, DN-суффикс для справки)
@@ -64,29 +63,6 @@ AD_ACCOUNT_TYPE_RULES: dict[str, list[tuple[str, str]]] = {
         ("OU=Disabled_user,OU=MyBusiness",         "User"),
     ],
 }
-
-# ======================================================================
-# LDAP-подключение к AD (опциональная синхронизация напрямую)
-# Активно, только если заданы AD_LDAP_USER и AD_LDAP_PASSWORD.
-# Серверы задаются per-domain через переменные окружения.
-# ======================================================================
-AD_LDAP = {
-    "izhevsk": {
-        "server": os.getenv("AD_LDAP_SERVER_IZHEVSK", ""),
-        "search_base": "DC=local,DC=htc-cs,DC=com",
-    },
-    "kostroma": {
-        "server": os.getenv("AD_LDAP_SERVER_KOSTROMA", ""),
-        "search_base": "DC=ad,DC=local",
-    },
-    "moscow": {
-        "server": os.getenv("AD_LDAP_SERVER_MOSCOW", ""),
-        "search_base": "DC=aplana,DC=com",
-    },
-}
-AD_LDAP_USER = os.getenv("AD_LDAP_USER", "")
-AD_LDAP_PASSWORD = os.getenv("AD_LDAP_PASSWORD", "")
-AD_LDAP_USE_SSL = os.getenv("AD_LDAP_USE_SSL", "false").lower() in ("true", "1", "yes")
 
 # ======================================================================
 # Маппинг колонок источников

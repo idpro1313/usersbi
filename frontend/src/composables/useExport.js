@@ -12,9 +12,12 @@ export function useExport() {
       return
     }
     try {
+      const token = localStorage.getItem('auth_token')
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = 'Bearer ' + token
       const r = await fetch('/api/export/table', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           columns: columns.map(c => ({ key: c.key, label: c.label })),
           rows,

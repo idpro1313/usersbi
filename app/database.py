@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import re
+import secrets as _secrets
 from datetime import datetime, timezone
-from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, text, inspect as sa_inspect
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text, Boolean, text, inspect as sa_inspect
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import DATABASE_URL
 
@@ -10,6 +11,25 @@ _SAFE_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+class AppSetting(Base):
+    __tablename__ = "app_settings"
+    key = Column(String(100), primary_key=True)
+    value = Column(Text, default="")
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class AppUser(Base):
+    __tablename__ = "app_users"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(100), unique=True, index=True, nullable=False)
+    display_name = Column(String(255), default="")
+    role = Column(String(20), default="viewer")
+    domain = Column(String(50), default="")
+    is_active = Column(Boolean, default=True)
+    last_login = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Upload(Base):
@@ -177,6 +197,44 @@ def init_db():
     _migrate_table(insp, "ad_records", ADRecord)
     _migrate_table(insp, "mfa_records", MFARecord)
     _migrate_table(insp, "people_records", PeopleRecord)
+    _ensure_jwt_secret()
+
+
+def _ensure_jwt_secret():
+    """Генерирует JWT-секрет при первом запуске."""
+    db = SessionLocal()
+    try:
+        s = db.query(AppSetting).filter_by(key="jwt.secret").first()
+        if not s:
+            db.add(AppSetting(key="jwt.secret", value=_secrets.token_hex(32)))
+            db.commit()
+    finally:
+        db.close()
+
+
+def get_setting(db, key: str, default: str = "") -> str:
+    """Получает значение настройки из БД."""
+    s = db.query(AppSetting).filter_by(key=key).first()
+    return s.value if s and s.value else default
+
+
+def set_setting(db, key: str, value: str):
+    """Устанавливает значение настройки в БД."""
+    s = db.query(AppSetting).filter_by(key=key).first()
+    if s:
+        s.value = value
+        s.updated_at = datetime.now(timezone.utc)
+    else:
+        db.add(AppSetting(key=key, value=value, updated_at=datetime.now(timezone.utc)))
+
+
+def is_auth_configured(db) -> bool:
+    """Проверяет, настроена ли авторизация (есть ли хотя бы один LDAP-сервер)."""
+    for domain in ("izhevsk", "kostroma", "moscow"):
+        srv = get_setting(db, f"ldap.{domain}.server")
+        if srv:
+            return True
+    return False
 
 
 def get_db():
