@@ -8,7 +8,9 @@ import ToastContainer from './components/ToastContainer.vue'
     <NavBar />
     <router-view v-slot="{ Component }">
       <Transition name="page" mode="out-in">
-        <component :is="Component" />
+        <div :key="$route.path" class="page-wrap">
+          <component :is="Component" />
+        </div>
       </Transition>
     </router-view>
     <ToastContainer />
