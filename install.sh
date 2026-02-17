@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Установка и запуск приложения «Сводная AD / MFA / Кадры» на Ubuntu.
-# Запуск из корня репозитория (после git clone):
-#   ./install.sh        — первый запуск или обычный старт
-#   ./install.sh update — обновление из GitHub и пересборка контейнера
-# Пути относительные от каталога, куда клонирован проект.
+# Установка и запуск приложения «Девелоника Пользователи» на Ubuntu.
+# Первый запуск:
+#   git clone https://gitlabacr.aplanadc.ru/IYatsishen/usersbi.git
+#   cd usersbi && ./install.sh
+# Обновление:
+#   ./install.sh update — обновление из GitLab и пересборка контейнера
 
 set -e
 
@@ -17,7 +18,7 @@ COMPOSE_OPTS=(-f "${PROJECT_ROOT}/docker-compose.yml" --project-directory "$PROJ
 echo "Проект: ${PROJECT_ROOT}"
 
 if [ "${1:-}" = "update" ]; then
-  echo "Режим: обновление из GitHub"
+  echo "Режим: обновление из GitLab"
   if [ -d .git ]; then
     # Запоминаем текущий коммит
     OLD_HEAD=$(git rev-parse HEAD)
