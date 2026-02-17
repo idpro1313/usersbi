@@ -12,6 +12,7 @@ const activeTab = ref('users')
 const tabs = [
   { key: 'ldap', label: 'LDAP-подключения' },
   { key: 'users', label: 'Пользователи' },
+  { key: 'ou_rules', label: 'Типы УЗ' },
   { key: 'upload', label: 'Загрузка данных' },
 ]
 
@@ -167,6 +168,62 @@ function isSelf(u) {
   return u.username === auth.user.value?.username
 }
 
+// ─── OU → Account Type rules ─────────────────────────────
+
+const ouLoading = ref(false)
+const ouSaving = ref(false)
+const ouRules = reactive({})
+const ouDomains = ref({})
+const ouAccountTypes = ref([])
+
+async function loadOuRules() {
+  ouLoading.value = true
+  try {
+    const data = await fetchJSON('/api/settings/ou-rules')
+    Object.keys(ouRules).forEach(k => delete ouRules[k])
+    Object.assign(ouRules, data.rules || {})
+    ouDomains.value = data.domains || {}
+    ouAccountTypes.value = data.account_types || []
+  } catch (e) {
+    toast.error('Ошибка загрузки правил: ' + e.message)
+  } finally {
+    ouLoading.value = false
+  }
+}
+
+async function saveOuRules() {
+  ouSaving.value = true
+  try {
+    await putJSON('/api/settings/ou-rules', { rules: { ...ouRules } })
+    toast.success('Правила типов УЗ сохранены')
+  } catch (e) {
+    toast.error('Ошибка сохранения: ' + e.message)
+  } finally {
+    ouSaving.value = false
+  }
+}
+
+async function resetOuRules() {
+  if (!confirm('Сбросить правила к значениям по умолчанию?')) return
+  try {
+    const data = await postJSON('/api/settings/ou-rules/reset', {})
+    Object.keys(ouRules).forEach(k => delete ouRules[k])
+    Object.assign(ouRules, data.rules || {})
+    toast.success('Правила сброшены к значениям по умолчанию')
+  } catch (e) {
+    toast.error(e.message)
+  }
+}
+
+function addOuRule(domainKey) {
+  if (!ouRules[domainKey]) ouRules[domainKey] = []
+  ouRules[domainKey].push(['', 'User'])
+}
+
+function removeOuRule(domainKey, index) {
+  ouRules[domainKey].splice(index, 1)
+}
+
 // ─── Upload (перенос из UploadView) ────────────────────
 
 const SyncIcon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`
@@ -316,6 +373,7 @@ async function loadUploadSyncStatus() {
 onMounted(() => {
   loadLdapSettings()
   loadUsers()
+  loadOuRules()
   loadUploadSyncStatus()
 })
 </script>
@@ -509,6 +567,56 @@ onMounted(() => {
           </tbody>
         </table>
         <p v-else class="empty-msg">Пользователей пока нет. Нажмите «+ Добавить пользователя» и задайте пароль для локального входа.</p>
+      </div>
+
+      <!-- ═══ Tab: OU Rules ═══ -->
+      <div v-show="activeTab === 'ou_rules'" class="settings-panel">
+        <LoadingSpinner v-if="ouLoading" text="Загрузка правил…" />
+        <template v-else>
+          <p class="ou-hint">
+            Правила определяют тип учётной записи по вхождению паттерна в Distinguished Name (DN).
+            Проверяются сверху вниз — первое совпадение побеждает. Если ни одно правило не сработало — тип «Unknown».
+          </p>
+
+          <div v-for="(domainKey, idx) in Object.keys(ouDomains)" :key="domainKey" class="card ou-domain-card">
+            <h3>{{ ouDomains[domainKey] }} <span class="ou-domain-key">({{ domainKey }})</span></h3>
+            <table class="ou-rules-table" v-if="ouRules[domainKey]?.length">
+              <thead>
+                <tr>
+                  <th class="ou-col-num">#</th>
+                  <th>Паттерн OU (подстрока DN)</th>
+                  <th class="ou-col-type">Тип УЗ</th>
+                  <th class="ou-col-act"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(rule, i) in ouRules[domainKey]" :key="i">
+                  <td class="ou-col-num">{{ i + 1 }}</td>
+                  <td>
+                    <input v-model="rule[0]" class="ou-input" placeholder="OU=Example,OU=Parent">
+                  </td>
+                  <td class="ou-col-type">
+                    <select v-model="rule[1]" class="ou-select">
+                      <option v-for="t in ouAccountTypes" :key="t" :value="t">{{ t }}</option>
+                    </select>
+                  </td>
+                  <td class="ou-col-act">
+                    <button class="btn-sm btn-danger" title="Удалить" @click="removeOuRule(domainKey, i)">✕</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-else class="empty-msg" style="padding: .5rem">Нет правил. Все УЗ получат тип «Unknown».</p>
+            <button class="btn-sm" style="margin-top: .5rem" @click="addOuRule(domainKey)">+ Добавить правило</button>
+          </div>
+
+          <div class="ou-actions">
+            <button class="btn btn-accent" :disabled="ouSaving" @click="saveOuRules">
+              {{ ouSaving ? 'Сохранение…' : 'Сохранить правила' }}
+            </button>
+            <button class="btn" @click="resetOuRules">Сбросить к умолчаниям</button>
+          </div>
+        </template>
       </div>
 
       <!-- ═══ Tab: Upload ═══ -->
@@ -802,5 +910,70 @@ html[data-theme="dark"] .type-ldap { background: rgba(230,81,0,.15); }
   color: var(--muted);
   text-align: center;
   padding: 2rem;
+}
+
+/* OU Rules */
+.ou-hint {
+  color: var(--muted);
+  font-size: .85rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+.ou-domain-card {
+  padding: 1rem 1.25rem;
+  margin-bottom: 1rem;
+}
+.ou-domain-card h3 {
+  margin: 0 0 .75rem;
+  font-size: 1.05rem;
+}
+.ou-domain-key {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: .85rem;
+}
+.ou-rules-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.ou-rules-table th,
+.ou-rules-table td {
+  padding: .35rem .5rem;
+  text-align: left;
+  font-size: .9rem;
+}
+.ou-rules-table th {
+  font-weight: 600;
+  font-size: .8rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.ou-col-num { width: 30px; text-align: center; color: var(--muted); }
+.ou-col-type { width: 140px; }
+.ou-col-act { width: 40px; text-align: center; }
+.ou-input {
+  width: 100%;
+  padding: .35rem .5rem;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  font-size: .85rem;
+  font-family: monospace;
+  background: var(--bg);
+  color: var(--text);
+}
+.ou-input:focus { outline: none; border-color: var(--accent); }
+.ou-select {
+  width: 100%;
+  padding: .3rem .4rem;
+  border: 1.5px solid var(--border);
+  border-radius: 4px;
+  font-size: .85rem;
+  background: var(--bg);
+  color: var(--text);
+}
+.ou-actions {
+  display: flex;
+  gap: .75rem;
+  margin-top: 1rem;
 }
 </style>

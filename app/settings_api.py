@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, get_setting, set_setting, AppSetting, AppUser
 from app.auth import require_admin, encrypt_value, decrypt_value, hash_password
-from app.config import AD_DOMAINS
+import json
+from app.config import AD_DOMAINS, AD_ACCOUNT_TYPE_RULES, ACCOUNT_TYPES
 
 logger = logging.getLogger(__name__)
 
@@ -214,3 +215,65 @@ async def delete_user(
     db.delete(user)
     db.commit()
     return {"ok": True}
+
+
+# ── OU → Account Type mapping ─────────────────────────────
+
+def _get_ou_rules(db) -> dict:
+    """Возвращает правила из БД или дефолтные из config."""
+    raw = get_setting(db, "ou_type_rules")
+    if raw:
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return {k: [list(t) for t in v] for k, v in AD_ACCOUNT_TYPE_RULES.items()}
+
+
+@router.get("/ou-rules")
+async def get_ou_rules(
+    _user: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Текущие правила маппинга OU→тип УЗ."""
+    rules = _get_ou_rules(db)
+    return {
+        "rules": rules,
+        "domains": {k: v for k, v in AD_DOMAINS.items()},
+        "account_types": ACCOUNT_TYPES,
+    }
+
+
+@router.put("/ou-rules")
+async def update_ou_rules(
+    payload: dict[str, Any] = Body(...),
+    _user: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Обновить правила маппинга OU→тип УЗ."""
+    rules = payload.get("rules", {})
+    for domain_key, domain_rules in rules.items():
+        if domain_key not in AD_DOMAINS:
+            raise HTTPException(400, f"Неизвестный домен: {domain_key}")
+        if not isinstance(domain_rules, list):
+            raise HTTPException(400, f"Правила для {domain_key} должны быть списком")
+        for rule in domain_rules:
+            if not isinstance(rule, list) or len(rule) != 2:
+                raise HTTPException(400, "Каждое правило — [паттерн, тип]")
+            if rule[1] not in ACCOUNT_TYPES:
+                raise HTTPException(400, f"Недопустимый тип: {rule[1]}")
+    set_setting(db, "ou_type_rules", json.dumps(rules, ensure_ascii=False))
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/ou-rules/reset")
+async def reset_ou_rules(
+    _user: dict = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Сбросить правила к значениям по умолчанию."""
+    defaults = {k: [list(t) for t in v] for k, v in AD_ACCOUNT_TYPE_RULES.items()}
+    set_setting(db, "ou_type_rules", json.dumps(defaults, ensure_ascii=False))
+    db.commit()
+    return {"ok": True, "rules": defaults}

@@ -1,27 +1,40 @@
 # -*- coding: utf-8 -*-
+import json
 from sqlalchemy.orm import Session
-from app.database import ADRecord, MFARecord, PeopleRecord
+from app.database import ADRecord, MFARecord, PeopleRecord, get_setting
 from app.config import AD_SOURCE_LABELS, AD_ACCOUNT_TYPE_RULES
 from app.utils import norm, norm_phone, norm_email, norm_key_login, norm_key_uuid, enabled_str, fmt_date, fmt_datetime
 
 
-def _account_type(ad_source: str, dn: str) -> str:
-    """Определяет тип УЗ по правилам из AD_ACCOUNT_TYPE_RULES.
+def _load_ou_rules(db: Session) -> dict:
+    """Загружает правила маппинга OU→тип из БД, fallback на config."""
+    raw = get_setting(db, "ou_type_rules")
+    if raw:
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return {k: [list(t) for t in v] for k, v in AD_ACCOUNT_TYPE_RULES.items()}
+
+
+def _account_type(ad_source: str, dn: str, rules: dict) -> str:
+    """Определяет тип УЗ по правилам маппинга.
 
     Правила проверяются по порядку; первое совпадение побеждает.
-    Если ни одно правило не сработало — «Service».
+    Если ни одно правило не сработало — «Unknown».
     """
-    rules = AD_ACCOUNT_TYPE_RULES.get(ad_source, [])
-    if not rules or not dn:
+    domain_rules = rules.get(ad_source, [])
+    if not domain_rules or not dn:
         return ""
     dn_lower = dn.lower()
-    for pattern, account_type in rules:
+    for rule in domain_rules:
+        pattern, account_type = rule[0], rule[1]
         if pattern.lower() in dn_lower:
             return account_type
-    return "Service"
+    return "Unknown"
 
 
-def _to_ad(r):
+def _to_ad(r, rules: dict):
     ad_source = norm(r.ad_source)
     dn = norm(r.distinguished_name)
     return {
@@ -37,7 +50,7 @@ def _to_ad(r):
         "mobile_ad": norm_phone(r.mobile),
         "fio_ad": norm(r.display_name),
         "staff_uuid": norm(r.staff_uuid),
-        "account_type": _account_type(ad_source, dn),
+        "account_type": _account_type(ad_source, dn, rules),
     }
 
 
@@ -140,7 +153,8 @@ def _build_result_row(r, mfa, people, has_mfa, has_people, remarks):
 
 def build_consolidated(db: Session) -> list[dict]:
     """Строит сводную таблицу из записей в БД: AD + MFA + кадры."""
-    rows_ad = [_to_ad(r) for r in db.query(ADRecord).all()]
+    ou_rules = _load_ou_rules(db)
+    rows_ad = [_to_ad(r, ou_rules) for r in db.query(ADRecord).all()]
     rows_mfa = [_to_mfa(r) for r in db.query(MFARecord).all()]
     rows_people = [_to_people(r) for r in db.query(PeopleRecord).all()]
 

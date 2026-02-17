@@ -43,26 +43,38 @@ AD_DOMAIN_DN = {
     "moscow":   "DC=aplana,DC=com",
 }
 
-# Правила определения типа УЗ по distinguishedName.
+# Правила определения типа УЗ по distinguishedName (дефолтные).
 # Для каждого домена — упорядоченный список (паттерн DN, тип УЗ).
 # Проверяется по порядку, первое совпадение (case-insensitive подстрока) побеждает.
-# Если ни одно правило не сработало — тип "Service".
+# Если ни одно правило не сработало — тип "Unknown".
+# Рабочие правила хранятся в БД (app_settings, ключ "ou_type_rules").
+# Эти значения используются как fallback при первом запуске.
 AD_ACCOUNT_TYPE_RULES: dict[str, list[tuple[str, str]]] = {
-    "izhevsk": [
-        ("OU=HTC,OU=Staff",                       "User"),
-        ("OU=Уволенные сотрудники,OU=Staff",       "User"),
-        ("OU=OutStaff,OU=Staff",                   "Contractor"),
-    ],
     "moscow": [
         ("OU=Departments,OU=Develonica Group",     "User"),
-        ("OU=Disabled Users,OU=Develonica Group",  "User"),
         ("OU=Contractor,OU=Develonica Group",      "Contractor"),
+        ("OU=Disabled Users,OU=Develonica Group",  "Disabled"),
+        ("OU=Service Account,OU=Develonica Group", "Service"),
+        ("OU=Test User,OU=Develonica Group",       "Test"),
     ],
     "kostroma": [
-        ("OU=Users,OU=MyBusiness",                 "User"),
-        ("OU=Disabled_user,OU=MyBusiness",         "User"),
+        ("OU=SBSUsers,OU=Users,OU=MyBusiness",    "User"),
+        ("OU=Contractor,OU=Users,OU=MyBusiness",   "Contractor"),
+        ("OU=Disabled_user,OU=Users,OU=MyBusiness","Disabled"),
+        ("OU=Service,OU=Users,OU=MyBusiness",      "Service"),
+        ("OU=Test,OU=Users,OU=MyBusiness",         "Test"),
+    ],
+    "izhevsk": [
+        ("OU=HTC,OU=Staff",                        "User"),
+        ("OU=OutStaff,OU=Staff",                    "Contractor"),
+        ("OU=Уволенные сотрудники,OU=Staff",        "Disabled"),
+        ("OU=ServiceAccounts",                      "Service"),
+        ("OU=TestAccounts,OU=Staff",                "Test"),
     ],
 }
+
+# Допустимые типы УЗ (для UI)
+ACCOUNT_TYPES = ["User", "Contractor", "Disabled", "Service", "Test", "Unknown"]
 
 # ======================================================================
 # Маппинг колонок источников
