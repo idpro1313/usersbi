@@ -100,10 +100,12 @@ function rowsFilteredExcept(excludeKey) {
 function filterOptions(key) {
   const available = rowsFilteredExcept(key)
   const vals = {}
-  let hasEmpty = false
+  let emptyCount = 0
+  let filledCount = 0
   for (const row of available) {
     const v = row[key]
-    if (v == null || v === '') { hasEmpty = true; continue }
+    if (v == null || v === '') { emptyCount++; continue }
+    filledCount++
     vals[String(v)] = true
   }
   const isDate = !!DATE_KEYS[key]
@@ -114,9 +116,12 @@ function filterOptions(key) {
     if (isDate) { return dateSortKey(a) < dateSortKey(b) ? -1 : dateSortKey(a) > dateSortKey(b) ? 1 : 0 }
     return a.localeCompare(b, 'ru')
   })
-  const opts = [{ value: '', label: '— все (' + (sorted.length + (hasEmpty ? 1 : 0)) + ')' }]
-  if (hasEmpty) opts.push({ value: '__EMPTY__', label: 'ПУСТО' })
-  if (hasEmpty && sorted.length) opts.push({ value: '__NOT_EMPTY__', label: 'НЕ ПУСТО' })
+  const total = emptyCount + filledCount
+  const opts = [{ value: '', label: '— все (' + total + ')' }]
+  if (total > 0) {
+    opts.push({ value: '__EMPTY__', label: 'ПУСТО (' + emptyCount + ')' })
+    opts.push({ value: '__NOT_EMPTY__', label: 'НЕ ПУСТО (' + filledCount + ')' })
+  }
   for (const v of sorted) opts.push({ value: v, label: v })
   return opts
 }
