@@ -19,13 +19,18 @@ _DATE_FORMATS = [
 
 def norm(s):
     """Нормализация значения в строку. Обрабатывает None, NaN, pandas-типы."""
-    if pd.isna(s) or s is None:
+    if s is None:
         return ""
-    if isinstance(s, float) and s == int(s):
-        s = str(int(s))
-    else:
-        s = str(s).strip()
-    return "" if s in ("nan", "None", "#N/A") else s
+    if isinstance(s, float):
+        if pd.isna(s):
+            return ""
+        if s == int(s):
+            return str(int(s))
+        return str(s)
+    if isinstance(s, pd.Timestamp):
+        return str(s)
+    s = str(s).strip()
+    return "" if s in ("None", "#N/A") else s
 
 
 def norm_phone(raw) -> str:

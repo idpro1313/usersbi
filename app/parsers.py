@@ -42,10 +42,11 @@ def _read_file(content: bytes, filename: str) -> pd.DataFrame:
     """
     ext = (filename or "").lower().split(".")[-1]
     if ext in ("xlsx", "xls"):
-        return pd.read_excel(io.BytesIO(content), sheet_name=0)
+        return pd.read_excel(io.BytesIO(content), sheet_name=0, keep_default_na=False)
     first_line = content.decode("utf-8-sig", errors="replace").split("\n", 1)[0]
     sep = ";" if first_line.count(";") > first_line.count(",") else ","
-    return pd.read_csv(io.BytesIO(content), encoding="utf-8-sig", sep=sep, on_bad_lines="skip")
+    return pd.read_csv(io.BytesIO(content), encoding="utf-8-sig", sep=sep,
+                       on_bad_lines="skip", keep_default_na=False)
 
 
 # Хранит информацию о последнем парсинге для диагностики
@@ -198,7 +199,8 @@ def parse_ad(content: bytes, filename: str, override_domain: str = "",
 
 def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:
     try:
-        df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=";", on_bad_lines="skip")
+        df = pd.read_csv(io.BytesIO(content), encoding="utf-8", sep=";",
+                         on_bad_lines="skip", keep_default_na=False)
         original_cols = list(df.columns)
         df = _map_columns(df, MFA_COLUMNS)
         with _parse_info_lock:
@@ -230,7 +232,7 @@ def parse_mfa(content: bytes, filename: str) -> tuple[list[dict], str | None]:
 
 def parse_people(content: bytes, filename: str) -> tuple[list[dict], str | None]:
     try:
-        df = pd.read_excel(io.BytesIO(content), sheet_name=0)
+        df = pd.read_excel(io.BytesIO(content), sheet_name=0, keep_default_na=False)
         original_cols = list(df.columns)
         df = _map_columns(df, PEOPLE_COLUMNS)
         with _parse_info_lock:
