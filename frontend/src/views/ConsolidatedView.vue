@@ -315,7 +315,9 @@ onMounted(async () => {
           <td class="col-num">{{ idx + 1 }}</td>
           <td v-for="col in visibleColumns" :key="col.key"
             :class="{ discrepancy: col.key === 'discrepancies' }">
-            {{ row[col.key] ?? '' }}
+            <span v-if="col.key === 'account_type' && row[col.key]"
+              class="at-badge" :class="'at-' + (row[col.key] || '').toLowerCase()">{{ row[col.key] }}</span>
+            <template v-else>{{ row[col.key] ?? '' }}</template>
           </td>
         </tr>
       </tbody>

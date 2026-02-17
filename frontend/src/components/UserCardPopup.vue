@@ -70,7 +70,10 @@ function summaryParts() {
         <h3 class="ucard-section-title">Учётные записи AD ({{ data.ad.length }})</h3>
         <div v-for="(a, i) in data.ad" :key="i"
           class="ucard-ad-block" :class="{ 'uz-inactive': a.enabled === 'Нет' }">
-          <div class="ucard-ad-domain">{{ a.domain }} — {{ a.login }}</div>
+          <div class="ucard-ad-domain">
+            {{ a.domain }} — {{ a.login }}
+            <span v-if="a.account_type" class="at-badge" :class="'at-' + a.account_type.toLowerCase()" style="margin-left: .5rem;">{{ a.account_type }}</span>
+          </div>
           <AdSections :account="a" @open-dn="(dn, name) => emit('open-dn', dn, name)" />
         </div>
       </div>

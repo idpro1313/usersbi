@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord
 from app.config import AD_SOURCE_LABELS
+from app.consolidation import load_ou_rules, compute_account_type
 from app.utils import norm, enabled_str, norm_key_login
 
 router = APIRouter(prefix="/api/duplicates", tags=["duplicates"])
@@ -28,6 +29,7 @@ def get_duplicates(db: Session = Depends(get_db)):
         login_map.setdefault(login, []).append(r)
 
     # Оставляем только те, что встречаются в >1 доменах
+    ou_rules = load_ou_rules(db)
     rows = []
     for login, recs in login_map.items():
         domains = set(r.ad_source for r in recs)
@@ -44,6 +46,7 @@ def get_duplicates(db: Session = Depends(get_db)):
                 "phone":             norm(r.phone),
                 "mobile":            norm(r.mobile),
                 "enabled":           enabled_str(r.enabled),
+                "account_type":      compute_account_type(r.ad_source or "", norm(r.distinguished_name), ou_rules),
                 "password_last_set": norm(r.password_last_set),
                 "account_expires":   norm(r.account_expires),
                 "staff_uuid":        norm(r.staff_uuid),

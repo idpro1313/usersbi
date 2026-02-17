@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord
 from app.config import AD_SOURCE_LABELS
+from app.consolidation import load_ou_rules, compute_account_type
 from app.utils import norm, enabled_str, build_member_dict, sort_members
 
 router = APIRouter(prefix="/api/org", tags=["org"])
@@ -81,9 +82,11 @@ def org_members(
 
     records = q.all()
 
+    ou_rules = load_ou_rules(db)
     members = [
         build_member_dict(r, include_location=True,
-                          include_domain_label=AD_SOURCE_LABELS.get(r.ad_source, r.ad_source or ""))
+                          include_domain_label=AD_SOURCE_LABELS.get(r.ad_source, r.ad_source or ""),
+                          account_type=compute_account_type(r.ad_source or "", norm(r.distinguished_name), ou_rules))
         for r in records
     ]
     sort_members(members)

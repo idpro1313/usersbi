@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord
 from app.config import AD_DOMAINS
-from app.utils import build_member_dict, sort_members
+from app.consolidation import load_ou_rules, compute_account_type
+from app.utils import norm, build_member_dict, sort_members
 
 router = APIRouter(prefix="/api/structure", tags=["structure"])
 
@@ -96,7 +97,11 @@ def structure_members(
         ADRecord.distinguished_name.isnot(None),
     ).all()
 
-    members = [build_member_dict(r) for r in records if _parse_ou_path(r.distinguished_name or "") == target_parts]
+    ou_rules = load_ou_rules(db)
+    members = [
+        build_member_dict(r, account_type=compute_account_type(r.ad_source or "", norm(r.distinguished_name), ou_rules))
+        for r in records if _parse_ou_path(r.distinguished_name or "") == target_parts
+    ]
     sort_members(members)
     return {
         "path": "/".join(target_parts),

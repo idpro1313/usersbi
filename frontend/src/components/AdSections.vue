@@ -56,7 +56,8 @@ function onClick(e) {
     ]" />
     <div class="ucard-ad-section-label">Статус</div>
     <FieldsTable :pairs="[
-      ['Активна', account.enabled], ['Заблокирована', account.locked_out],
+      ['Активна', account.enabled], ['Тип УЗ', account.account_type],
+      ['Заблокирована', account.locked_out],
       ['Время блокировки', account.account_lockout_time],
     ]" />
     <div class="ucard-ad-section-label">Пароль</div>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord
 from app.config import AD_LABELS
+from app.consolidation import load_ou_rules, compute_account_type
 from app.utils import norm, enabled_str
 
 router = APIRouter(prefix="/api/security", tags=["security"])
@@ -40,54 +41,56 @@ def _is_enabled(r: ADRecord) -> bool:
     return enabled_str(r.enabled) == "Да"
 
 
-def _user_link(r: ADRecord) -> dict:
+def _user_link(r: ADRecord, ou_rules: dict | None = None) -> dict:
     """Минимальный словарь для отображения в таблице."""
     uuid = norm(r.staff_uuid)
     login = norm(r.login)
     key = uuid.lower() if uuid else f"_login_{login.lower()}" if login else ""
+    at = compute_account_type(r.ad_source or "", norm(r.distinguished_name), ou_rules) if ou_rules else ""
     return {
         "key": key,
         "login": login,
         "display_name": norm(r.display_name),
         "domain": AD_LABELS.get(r.ad_source, r.ad_source or ""),
         "enabled": enabled_str(r.enabled),
+        "account_type": at,
         "distinguished_name": norm(r.distinguished_name),
     }
 
 
 # ─── Категории проверок ──────────────────────────────────────
 
-def _check_password_never_expires(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_password_never_expires(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_enabled(r) and _is_true(getattr(r, "password_never_expires", ""))]
 
 
-def _check_password_not_required(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_password_not_required(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_enabled(r) and _is_true(getattr(r, "password_not_required", ""))]
 
 
-def _check_reversible_encryption(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_reversible_encryption(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_true(getattr(r, "allow_reversible_password_encryption", ""))]
 
 
-def _check_no_preauth(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_no_preauth(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_enabled(r) and _is_true(getattr(r, "does_not_require_preauth", ""))]
 
 
-def _check_unconstrained_delegation(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_unconstrained_delegation(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_true(getattr(r, "trusted_for_delegation", ""))]
 
 
-def _check_protocol_transition(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_protocol_transition(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_true(getattr(r, "trusted_to_auth_for_delegation", ""))]
 
 
-def _check_spn_kerberoasting(records: list[ADRecord]) -> list[dict]:
+def _check_spn_kerberoasting(records: list[ADRecord], ou_rules: dict) -> list[dict]:
     """Пользовательские УЗ с SPN (потенциальный Kerberoasting)."""
     result = []
     for r in records:
@@ -95,28 +98,28 @@ def _check_spn_kerberoasting(records: list[ADRecord]) -> list[dict]:
             continue
         spn = norm(getattr(r, "service_principal_names", ""))
         if spn:
-            item = _user_link(r)
+            item = _user_link(r, ou_rules)
             item["spn"] = spn
             result.append(item)
     return result
 
 
-def _check_locked_out(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_locked_out(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_true(getattr(r, "locked_out", ""))]
 
 
-def _check_must_change_password(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_must_change_password(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_enabled(r) and norm(r.must_change_password).lower() in ("да", "true", "yes", "1")]
 
 
-def _check_password_expired(records: list[ADRecord]) -> list[dict]:
-    return [_user_link(r) for r in records
+def _check_password_expired(records: list[ADRecord], ou_rules: dict) -> list[dict]:
+    return [_user_link(r, ou_rules) for r in records
             if _is_enabled(r) and _is_true(getattr(r, "password_expired", ""))]
 
 
-def _check_inactive_accounts(records: list[ADRecord], days: int) -> list[dict]:
+def _check_inactive_accounts(records: list[ADRecord], days: int, ou_rules: dict) -> list[dict]:
     """Активные УЗ, последний вход которых был более N дней назад."""
     cutoff = datetime.now() - timedelta(days=days)
     result = []
@@ -127,19 +130,19 @@ def _check_inactive_accounts(records: list[ADRecord], days: int) -> list[dict]:
         if dt is None:
             dt = _to_dt(getattr(r, "last_logon_timestamp", None))
         if dt is None:
-            item = _user_link(r)
+            item = _user_link(r, ou_rules)
             item["last_logon"] = "никогда"
             item["days_ago"] = "∞"
             result.append(item)
         elif dt < cutoff:
-            item = _user_link(r)
+            item = _user_link(r, ou_rules)
             item["last_logon"] = dt.strftime("%d.%m.%Y")
             item["days_ago"] = str((datetime.now() - dt).days)
             result.append(item)
     return result
 
 
-def _check_stale_passwords(records: list[ADRecord], days: int) -> list[dict]:
+def _check_stale_passwords(records: list[ADRecord], days: int, ou_rules: dict) -> list[dict]:
     """Активные УЗ, пароль которых не менялся более N дней."""
     cutoff = datetime.now() - timedelta(days=days)
     result = []
@@ -152,14 +155,14 @@ def _check_stale_passwords(records: list[ADRecord], days: int) -> list[dict]:
         if dt is None:
             continue
         if dt < cutoff:
-            item = _user_link(r)
+            item = _user_link(r, ou_rules)
             item["password_last_set"] = dt.strftime("%d.%m.%Y")
             item["days_ago"] = str((datetime.now() - dt).days)
             result.append(item)
     return result
 
 
-def _check_disabled_with_groups(records: list[ADRecord]) -> list[dict]:
+def _check_disabled_with_groups(records: list[ADRecord], ou_rules: dict) -> list[dict]:
     """Отключённые УЗ, всё ещё состоящие в группах безопасности."""
     result = []
     for r in records:
@@ -170,7 +173,7 @@ def _check_disabled_with_groups(records: list[ADRecord]) -> list[dict]:
             continue
         count = len([g for g in groups.split(";") if g.strip()])
         if count > 1:
-            item = _user_link(r)
+            item = _user_link(r, ou_rules)
             item["group_count"] = count
             result.append(item)
     return result
@@ -289,8 +292,8 @@ _CHECK_FN = {
     "locked_out": _check_locked_out,
     "must_change_password": _check_must_change_password,
     "password_expired": _check_password_expired,
-    "inactive_accounts": lambda recs: _check_inactive_accounts(recs, INACTIVE_DAYS),
-    "stale_passwords": lambda recs: _check_stale_passwords(recs, STALE_PASSWORD_DAYS),
+    "inactive_accounts": lambda recs, rules: _check_inactive_accounts(recs, INACTIVE_DAYS, rules),
+    "stale_passwords": lambda recs, rules: _check_stale_passwords(recs, STALE_PASSWORD_DAYS, rules),
     "disabled_with_groups": _check_disabled_with_groups,
 }
 
@@ -299,6 +302,7 @@ _CHECK_FN = {
 def security_findings(db: Session = Depends(get_db)):
     """Полный отчёт по всем категориям безопасности."""
     records = db.query(ADRecord).all()
+    ou_rules = load_ou_rules(db)
     total_accounts = len(records)
     total_enabled = sum(1 for r in records if _is_enabled(r))
 
@@ -309,7 +313,7 @@ def security_findings(db: Session = Depends(get_db)):
 
     for cat in CATEGORIES:
         fn = _CHECK_FN[cat["id"]]
-        items = fn(records)
+        items = fn(records, ou_rules)
         count = len(items)
         total_issues += count
         if cat["severity"] == "critical":

@@ -184,6 +184,7 @@ const MEMBERS_COLS = [
   { key: 'login', label: 'Логин' },
   { key: 'email', label: 'Email' },
   { key: 'enabled', label: 'Активна' },
+  { key: 'account_type', label: 'Тип УЗ' },
   { key: 'password_last_set', label: 'Смена пароля' },
   { key: 'title', label: 'Должность' },
   { key: 'department', label: 'Отдел' },
@@ -259,7 +260,10 @@ onMounted(loadList)
             <template v-if="cardData.ad.length">
               <div v-for="(a, i) in cardData.ad" :key="i"
                 class="ucard-ad-block" :class="{ 'uz-inactive': a.enabled === 'Нет' }">
-                <div class="ucard-ad-domain">{{ a.domain }} — {{ a.login }}</div>
+                <div class="ucard-ad-domain">
+                  {{ a.domain }} — {{ a.login }}
+                  <span v-if="a.account_type" class="at-badge" :class="'at-' + a.account_type.toLowerCase()" style="margin-left: .5rem;">{{ a.account_type }}</span>
+                </div>
                 <AdSections :account="a"
                   :renderGroupsHtml="renderGroupLinks"
                   :renderManagerHtml="renderManagerLink"
@@ -318,7 +322,11 @@ onMounted(loadList)
         <thead><tr><th v-for="c in MEMBERS_COLS" :key="c.key">{{ c.label }}</th></tr></thead>
         <tbody>
           <tr v-for="(m, i) in membersData" :key="i" :class="{ 'row-inactive': (m.enabled || '').toLowerCase() === 'нет' }">
-            <td v-for="c in MEMBERS_COLS" :key="c.key">{{ m[c.key] || '' }}</td>
+            <td v-for="c in MEMBERS_COLS" :key="c.key">
+              <span v-if="c.key === 'account_type' && m[c.key]"
+                class="at-badge" :class="'at-' + (m[c.key] || '').toLowerCase()">{{ m[c.key] }}</span>
+              <template v-else>{{ m[c.key] || '' }}</template>
+            </td>
           </tr>
         </tbody>
       </table>

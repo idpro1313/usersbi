@@ -12,6 +12,7 @@ const COLUMNS = [
   { key: 'phone',             label: 'Телефон' },
   { key: 'mobile',            label: 'Мобильный' },
   { key: 'enabled',           label: 'Активна' },
+  { key: 'account_type',      label: 'Тип УЗ' },
   { key: 'password_last_set', label: 'Смена пароля' },
   { key: 'account_expires',   label: 'Срок УЗ' },
   { key: 'staff_uuid',        label: 'StaffUUID' },

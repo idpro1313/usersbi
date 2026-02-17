@@ -6,7 +6,7 @@ from app.config import AD_SOURCE_LABELS, AD_ACCOUNT_TYPE_RULES
 from app.utils import norm, norm_phone, norm_email, norm_key_login, norm_key_uuid, enabled_str, fmt_date, fmt_datetime
 
 
-def _load_ou_rules(db: Session) -> dict:
+def load_ou_rules(db: Session) -> dict:
     """Загружает правила маппинга OU→тип из БД, fallback на config."""
     raw = get_setting(db, "ou_type_rules")
     if raw:
@@ -17,7 +17,7 @@ def _load_ou_rules(db: Session) -> dict:
     return {k: [list(t) for t in v] for k, v in AD_ACCOUNT_TYPE_RULES.items()}
 
 
-def _account_type(ad_source: str, dn: str, rules: dict) -> str:
+def compute_account_type(ad_source: str, dn: str, rules: dict) -> str:
     """Определяет тип УЗ по правилам маппинга.
 
     Правила проверяются по порядку; первое совпадение побеждает.
@@ -50,7 +50,7 @@ def _to_ad(r, rules: dict):
         "mobile_ad": norm_phone(r.mobile),
         "fio_ad": norm(r.display_name),
         "staff_uuid": norm(r.staff_uuid),
-        "account_type": _account_type(ad_source, dn, rules),
+        "account_type": compute_account_type(ad_source, dn, rules),
     }
 
 
@@ -153,7 +153,7 @@ def _build_result_row(r, mfa, people, has_mfa, has_people, remarks):
 
 def build_consolidated(db: Session) -> list[dict]:
     """Строит сводную таблицу из записей в БД: AD + MFA + кадры."""
-    ou_rules = _load_ou_rules(db)
+    ou_rules = load_ou_rules(db)
     rows_ad = [_to_ad(r, ou_rules) for r in db.query(ADRecord).all()]
     rows_mfa = [_to_mfa(r) for r in db.query(MFARecord).all()]
     rows_people = [_to_people(r) for r in db.query(PeopleRecord).all()]

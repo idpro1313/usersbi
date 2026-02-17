@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, ADRecord, MFARecord, PeopleRecord
 from app.config import AD_LABELS, AD_SOURCE_LABELS
+from app.consolidation import load_ou_rules, compute_account_type
 from app.utils import norm, norm_email, enabled_str, fmt_date, fmt_datetime
 
 router = APIRouter(prefix="/api/users", tags=["users"])
@@ -186,7 +187,7 @@ def _resolve_managers(ad_cards: list[dict], db: Session):
         c["manager_name"] = info.get("name", "")
 
 
-def _build_ad_cards(ad_recs, logins):
+def _build_ad_cards(ad_recs, logins, ou_rules: dict | None = None):
     """Строит список карточек AD-записей."""
     logins_set = {l.lower() for l in logins}
     cards = []
@@ -195,10 +196,12 @@ def _build_ad_cards(ad_recs, logins):
         if login.lower() not in logins_set:
             logins.append(login.lower())
             logins_set.add(login.lower())
+        at = compute_account_type(r.ad_source or "", norm(r.distinguished_name), ou_rules) if ou_rules else ""
         cards.append({
             "ad_source": r.ad_source or "",
             "domain": AD_LABELS.get(r.ad_source, r.ad_source or ""),
             "login": login,
+            "account_type": at,
             # --- основные ---
             "display_name": norm(r.display_name),
             "given_name": norm(getattr(r, "given_name", "") or ""),
@@ -353,7 +356,8 @@ def user_card(
     staff_uuid, logins, ad_recs = _resolve_key(key, db)
 
     # --- AD ---
-    ad_cards, logins = _build_ad_cards(ad_recs, logins)
+    ou_rules = load_ou_rules(db)
+    ad_cards, logins = _build_ad_cards(ad_recs, logins, ou_rules)
 
     # --- Резолв руководителей ---
     _resolve_managers(ad_cards, db)

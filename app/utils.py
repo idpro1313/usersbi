@@ -131,7 +131,8 @@ def fmt_datetime(dt) -> str:
     return norm(dt)
 
 
-def build_member_dict(r, *, include_location: bool = False, include_domain_label: str = "") -> dict:
+def build_member_dict(r, *, include_location: bool = False, include_domain_label: str = "",
+                      account_type: str = "") -> dict:
     """
     Общая функция формирования словаря участника из ADRecord.
     Используется в groups, structure, org для единообразия.
@@ -141,6 +142,7 @@ def build_member_dict(r, *, include_location: bool = False, include_domain_label
         "display_name": norm(r.display_name),
         "email": norm(r.email),
         "enabled": enabled_str(r.enabled),
+        "account_type": account_type,
         "password_last_set": fmt_date(r.password_last_set),
         "title": norm(r.title),
         "department": norm(r.department),

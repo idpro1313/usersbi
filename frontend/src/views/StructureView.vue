@@ -12,6 +12,7 @@ const COLUMNS = [
   { key: 'display_name', label: 'ФИО' },
   { key: 'email',        label: 'Email' },
   { key: 'enabled',      label: 'УЗ активна' },
+  { key: 'account_type', label: 'Тип УЗ' },
   { key: 'password_last_set', label: 'Смена пароля' },
   { key: 'title',        label: 'Должность' },
   { key: 'department',   label: 'Отдел' },

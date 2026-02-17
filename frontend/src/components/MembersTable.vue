@@ -67,7 +67,11 @@ defineExpose({ doExport })
       </tr>
       <tr v-else v-for="(row, i) in sorted" :key="i"
         :class="{ 'uz-inactive': row.enabled === 'Нет' || row.uz_active === 'Нет' }">
-        <td v-for="col in columns" :key="col.key">{{ row[col.key] ?? '' }}</td>
+        <td v-for="col in columns" :key="col.key">
+          <span v-if="col.key === 'account_type' && row[col.key]"
+            class="at-badge" :class="'at-' + (row[col.key] || '').toLowerCase()">{{ row[col.key] }}</span>
+          <template v-else>{{ row[col.key] ?? '' }}</template>
+        </td>
       </tr>
     </tbody>
   </table>

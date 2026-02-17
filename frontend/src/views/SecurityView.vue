@@ -67,6 +67,7 @@ function buildTableHtml(items, extraCols) {
     { key: 'login', label: 'Логин' },
     { key: 'domain', label: 'Домен' },
     { key: 'enabled', label: 'Активна' },
+    { key: 'account_type', label: 'Тип УЗ' },
   ]
   const cols = baseCols.concat(extraCols || [])
   let html = '<table class="data-table sec-table"><thead><tr><th>#</th>'
@@ -79,6 +80,8 @@ function buildTableHtml(items, extraCols) {
       const val = item[c.key] || ''
       if (c.key === 'display_name' && item.key) {
         html += '<td><a href="#" class="ucard-link" data-user-key="' + escapeHtml(item.key) + '">' + escapeHtml(val || item.login) + '</a></td>'
+      } else if (c.key === 'account_type' && val) {
+        html += '<td><span class="at-badge at-' + escapeHtml(val.toLowerCase()) + '">' + escapeHtml(val) + '</span></td>'
       } else {
         html += '<td>' + escapeHtml(val) + '</td>'
       }

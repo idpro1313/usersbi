@@ -1359,6 +1359,30 @@ html, body {
   }
 }
 
+/* ─── Account-type badges ────────────────────────────────── */
+.at-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: .78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.at-user       { background: #e8f5e9; color: #2e7d32; }
+.at-contractor { background: #e3f2fd; color: #1565c0; }
+.at-disabled   { background: #fce4ec; color: #c62828; }
+.at-service    { background: #fff3e0; color: #e65100; }
+.at-test       { background: #f3e5f5; color: #7b1fa2; }
+.at-unknown    { background: #f5f5f5; color: #757575; }
+
+html[data-theme="dark"] .at-user       { background: rgba(46,125,50,.18);  color: #81c784; }
+html[data-theme="dark"] .at-contractor { background: rgba(21,101,192,.18); color: #64b5f6; }
+html[data-theme="dark"] .at-disabled   { background: rgba(198,40,40,.18);  color: #ef9a9a; }
+html[data-theme="dark"] .at-service    { background: rgba(230,81,0,.18);   color: #ffb74d; }
+html[data-theme="dark"] .at-test       { background: rgba(123,31,162,.18); color: #ce93d8; }
+html[data-theme="dark"] .at-unknown    { background: rgba(117,117,117,.18);color: #bdbdbd; }
+
 @media (max-width: 900px) {
   .groups-layout {
     flex-direction: column;
