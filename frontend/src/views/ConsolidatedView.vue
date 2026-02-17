@@ -60,7 +60,8 @@ const loading = ref(true)
 
 const discFilter = ref(new Set())
 const showDiscDropdown = ref(false)
-const discDropdownRef = ref(null)
+const discBtnRef = ref(null)
+const discDropdownPos = ref({ top: '0px', left: '0px' })
 
 const tableContainer = ref(null)
 const searchCache = new Map()
@@ -158,12 +159,25 @@ function clearDiscFilter() {
   applyFilters()
 }
 
+function openDiscDropdown(e) {
+  showDiscDropdown.value = !showDiscDropdown.value
+  if (showDiscDropdown.value) {
+    const btn = e.currentTarget
+    const rect = btn.getBoundingClientRect()
+    discDropdownPos.value = {
+      top: rect.bottom + 2 + 'px',
+      left: rect.left + 'px',
+    }
+  }
+}
+
 function onClickOutsideDisc(e) {
   if (!showDiscDropdown.value) return
-  const el = Array.isArray(discDropdownRef.value) ? discDropdownRef.value[0] : discDropdownRef.value
-  if (el && !el.contains(e.target)) {
-    showDiscDropdown.value = false
-  }
+  const btnEl = Array.isArray(discBtnRef.value) ? discBtnRef.value[0] : discBtnRef.value
+  if (btnEl && btnEl.contains(e.target)) return
+  const dd = document.getElementById('disc-dropdown-portal')
+  if (dd && dd.contains(e.target)) return
+  showDiscDropdown.value = false
 }
 
 const discFilterLabel = computed(() => {
@@ -378,29 +392,12 @@ onMounted(async () => {
           <th class="col-num"></th>
           <th v-for="col in visibleColumns" :key="col.key">
             <!-- Multi-select for discrepancies -->
-            <div v-if="col.key === 'discrepancies'" class="disc-filter-wrap" ref="discDropdownRef">
-              <button class="disc-filter-btn" :class="{ active: discFilter.size > 0 }"
-                @click.stop="showDiscDropdown = !showDiscDropdown">
+            <div v-if="col.key === 'discrepancies'" class="disc-filter-wrap">
+              <button ref="discBtnRef" class="disc-filter-btn" :class="{ active: discFilter.size > 0 }"
+                @click.stop="openDiscDropdown($event)">
                 {{ discFilterLabel }}
                 <span class="disc-filter-arrow">{{ showDiscDropdown ? '▴' : '▾' }}</span>
               </button>
-              <div v-if="showDiscDropdown" class="disc-dropdown">
-                <div class="disc-dropdown-actions">
-                  <button @click="clearDiscFilter" class="disc-dropdown-link">Сбросить</button>
-                </div>
-                <label class="disc-dropdown-item" @click.stop>
-                  <input type="checkbox" :checked="discFilter.has('__NONE__')"
-                    @change="toggleDiscTag('__NONE__')">
-                  <span>Нет расхождений ({{ discrepancyOptions().noneCount }})</span>
-                </label>
-                <div class="disc-dropdown-sep"></div>
-                <label v-for="[tag, cnt] in discrepancyOptions().tags" :key="tag"
-                  class="disc-dropdown-item" @click.stop>
-                  <input type="checkbox" :checked="discFilter.has(tag)"
-                    @change="toggleDiscTag(tag)">
-                  <span>{{ tag }} ({{ cnt }})</span>
-                </label>
-              </div>
             </div>
             <!-- Standard select for other columns -->
             <select v-else class="col-filter" :value="colFilters[col.key] || ''"
@@ -433,4 +430,26 @@ onMounted(async () => {
       </tbody>
     </table>
   </div>
+
+  <!-- Discrepancy multi-select dropdown (teleported out of overflow container) -->
+  <Teleport to="body">
+    <div v-if="showDiscDropdown" id="disc-dropdown-portal" class="disc-dropdown"
+      :style="{ position: 'fixed', top: discDropdownPos.top, left: discDropdownPos.left }">
+      <div class="disc-dropdown-actions">
+        <button @click="clearDiscFilter" class="disc-dropdown-link">Сбросить</button>
+      </div>
+      <label class="disc-dropdown-item" @click.stop>
+        <input type="checkbox" :checked="discFilter.has('__NONE__')"
+          @change="toggleDiscTag('__NONE__')">
+        <span>Нет расхождений ({{ discrepancyOptions().noneCount }})</span>
+      </label>
+      <div class="disc-dropdown-sep"></div>
+      <label v-for="[tag, cnt] in discrepancyOptions().tags" :key="tag"
+        class="disc-dropdown-item" @click.stop>
+        <input type="checkbox" :checked="discFilter.has(tag)"
+          @change="toggleDiscTag(tag)">
+        <span>{{ tag }} ({{ cnt }})</span>
+      </label>
+    </div>
+  </Teleport>
 </template>
