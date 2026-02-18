@@ -27,13 +27,13 @@ if [ "${1:-}" = "update" ]; then
 
     if [ "$OLD_HEAD" = "$NEW_HEAD" ]; then
       echo "Обновлений нет — контейнер не перезапускается."
-      exit 0
+      exit 10
     fi
 
     echo "Обнаружены изменения (${OLD_HEAD:0:8} → ${NEW_HEAD:0:8}), пересборка..."
   else
     echo "Каталог .git не найден, обновление пропущено."
-    exit 0
+    exit 10
   fi
   docker compose "${COMPOSE_OPTS[@]}" build
 else
